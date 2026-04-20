@@ -1,0 +1,1 @@
+To push: `source .env.local && git push https://${GH_TOKEN}@github.com/mci-kmd/db-genie.git`. The PAT is in `.env.local`.
