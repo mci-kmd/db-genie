@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>DB Genie — Brutalist Terminal</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Martian+Mono:wght@300;400;500;700&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #000;
+    --surface: #0a0a0a;
+    --border: #1a1a1a;
+    --text: #b0b0b0;
+    --text-dim: #555;
+    --text-muted: #333;
+    --green: #00ff88;
+    --green-dim: #00ff8815;
+    --red: #ff3344;
+    --amber: #ffaa00;
+    --mono: 'Martian Mono', monospace;
+  }
+
+  body {
+    font-family: var(--mono);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    width: 1440px;
+    overflow: hidden;
+    font-size: 12px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Scanlines effect */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    grid-template-rows: 1fr 20px;
+    height: 100vh;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    border-right: 2px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .section-head {
+    padding: 10px 16px;
+    border-bottom: 2px solid var(--border);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--green);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-head::before {
+    content: '>';
+    color: var(--green);
+  }
+
+  /* Connection */
+  .conn-block {
+    padding: 12px 16px;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .conn-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+    gap: 4px;
+  }
+
+  .conn-row .k {
+    color: var(--text-dim);
+    width: 70px;
+    flex-shrink: 0;
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+
+  .conn-row .v {
+    color: var(--text);
+    font-size: 11px;
+  }
+
+  .conn-row .v.active {
+    color: var(--green);
+  }
+
+  .conn-select {
+    width: 100%;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    color: var(--green);
+    padding: 6px 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+    margin-bottom: 8px;
+  }
+
+  .conn-select:focus { border-color: var(--green); }
+
+  .conn-btns {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .cmd-btn {
+    flex: 1;
+    padding: 5px;
+    background: transparent;
+    border: 2px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+
+  .cmd-btn:hover { border-color: var(--green); color: var(--green); }
+  .cmd-btn.active { border-color: var(--red); color: var(--red); }
+
+  /* Schema */
+  .schema-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
+  .schema-list::-webkit-scrollbar { width: 2px; }
+  .schema-list::-webkit-scrollbar-thumb { background: var(--text-muted); }
+
+  .s-item {
+    display: flex;
+    align-items: center;
+    padding: 3px 16px;
+    padding-left: calc(16px + var(--d, 0) * 14px);
+    cursor: pointer;
+    gap: 6px;
+    transition: background 0.05s;
+    font-size: 11px;
+  }
+
+  .s-item:hover { background: var(--green-dim); }
+  .s-item.sel { background: var(--green-dim); color: var(--green); }
+
+  .s-item .prefix {
+    color: var(--text-muted);
+    font-size: 10px;
+    width: 14px;
+    flex-shrink: 0;
+  }
+
+  .s-item.sel .prefix { color: var(--green); }
+
+  .s-item .count {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 10px;
+  }
+
+  .s-item .dtype {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 9px;
+    text-transform: uppercase;
+  }
+
+  /* Main */
+  .main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Editor */
+  .editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .exec-btn {
+    padding: 4px 14px;
+    background: var(--green-dim);
+    border: 2px solid var(--green);
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+
+  .exec-btn:hover { background: var(--green); color: var(--bg); }
+
+  .cancel-btn {
+    padding: 4px 14px;
+    background: transparent;
+    border: 2px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+  }
+
+  .cancel-btn:hover { border-color: var(--red); color: var(--red); }
+
+  .ai-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .ai-tag {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--amber);
+    flex-shrink: 0;
+  }
+
+  .ai-field {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    outline: none;
+  }
+
+  .ai-field:focus { border-color: var(--amber); }
+  .ai-field::placeholder { color: var(--text-muted); }
+
+  .gen-btn {
+    padding: 5px 10px;
+    background: transparent;
+    border: 1px solid var(--amber);
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  .gen-btn:hover { background: var(--amber); color: var(--bg); }
+
+  .code {
+    flex: 1;
+    overflow: auto;
+    padding: 12px 16px;
+    line-height: 1.8;
+    font-size: 12px;
+    background: var(--bg);
+  }
+
+  .code::-webkit-scrollbar { width: 2px; }
+  .code::-webkit-scrollbar-thumb { background: var(--text-muted); }
+
+  .code-line { white-space: pre; }
+  .code-line.cur { background: #00ff8808; margin: 0 -16px; padding: 0 16px; }
+  .ln { color: var(--text-muted); display: inline-block; width: 20px; text-align: right; margin-right: 16px; user-select: none; font-size: 10px; }
+  .kw { color: var(--green); font-weight: 700; }
+  .fn { color: var(--amber); }
+  .str { color: #66d9ef; }
+  .num { color: var(--red); }
+  .cm { color: var(--text-muted); }
+  .tbl { color: #e6db74; }
+
+  /* Results */
+  .results {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 200px;
+  }
+
+  .results-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 12px;
+    border-bottom: 2px solid var(--border);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+  }
+
+  .results-head .stat { color: var(--green); font-weight: 700; }
+
+  .grid-wrap {
+    flex: 1;
+    overflow: auto;
+  }
+
+  .grid-wrap::-webkit-scrollbar { width: 2px; height: 2px; }
+  .grid-wrap::-webkit-scrollbar-thumb { background: var(--text-muted); }
+
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    background: var(--surface);
+    padding: 6px 12px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    border-bottom: 2px solid var(--border);
+    position: sticky;
+    top: 0;
+  }
+
+  td {
+    padding: 4px 12px;
+    border-bottom: 1px solid #111;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  tr:hover td { background: var(--green-dim); color: var(--text); }
+  .r { text-align: right; }
+  .nv { color: var(--red); }
+
+  /* Status */
+  .status {
+    grid-column: 1 / -1;
+    background: var(--green);
+    color: var(--bg);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    gap: 20px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="section-head">connection</div>
+    <div class="conn-block">
+      <select class="conn-select">
+        <option>PRODUCTION // ADVENTUREWORKS</option>
+        <option>STAGING // AW_STAGING</option>
+        <option>LOCAL // LOCALHOST</option>
+      </select>
+      <div class="conn-row"><span class="k">server</span><span class="v active">sql-prod-01.corp.net</span></div>
+      <div class="conn-row"><span class="k">database</span><span class="v">AdventureWorks2022</span></div>
+      <div class="conn-row"><span class="k">user</span><span class="v">app_readonly</span></div>
+      <div class="conn-row"><span class="k">port</span><span class="v">1433</span></div>
+      <div class="conn-row"><span class="k">status</span><span class="v active">■ CONNECTED</span></div>
+      <div class="conn-btns">
+        <button class="cmd-btn active">disconnect</button>
+        <button class="cmd-btn">refresh</button>
+      </div>
+    </div>
+
+    <div class="section-head">schema</div>
+    <div class="schema-list">
+      <div class="s-item" style="--d:0"><span class="prefix">▾</span>AdventureWorks2022</div>
+      <div class="s-item" style="--d:1"><span class="prefix">▾</span>Sales</div>
+      <div class="s-item sel" style="--d:2"><span class="prefix">▸</span>Customer<span class="count">19,820</span></div>
+      <div class="s-item" style="--d:3"><span class="prefix">─</span>CustomerID<span class="dtype">int pk</span></div>
+      <div class="s-item" style="--d:3"><span class="prefix">─</span>PersonID<span class="dtype">int</span></div>
+      <div class="s-item" style="--d:3"><span class="prefix">─</span>StoreID<span class="dtype">int</span></div>
+      <div class="s-item" style="--d:3"><span class="prefix">─</span>TerritoryID<span class="dtype">int</span></div>
+      <div class="s-item" style="--d:3"><span class="prefix">─</span>AccountNumber<span class="dtype">varchar</span></div>
+      <div class="s-item" style="--d:3"><span class="prefix">─</span>ModifiedDate<span class="dtype">datetime</span></div>
+      <div class="s-item" style="--d:2"><span class="prefix">▸</span>SalesOrderHeader<span class="count">31,465</span></div>
+      <div class="s-item" style="--d:2"><span class="prefix">▸</span>SalesOrderDetail<span class="count">121,317</span></div>
+      <div class="s-item" style="--d:2"><span class="prefix">▸</span>SalesTerritory<span class="count">10</span></div>
+      <div class="s-item" style="--d:2"><span class="prefix">▸</span>Store<span class="count">701</span></div>
+      <div class="s-item" style="--d:1"><span class="prefix">▾</span>Person</div>
+      <div class="s-item" style="--d:2"><span class="prefix">▸</span>Person<span class="count">19,972</span></div>
+      <div class="s-item" style="--d:2"><span class="prefix">▸</span>Address<span class="count">19,614</span></div>
+      <div class="s-item" style="--d:1"><span class="prefix">▸</span>Production</div>
+      <div class="s-item" style="--d:1"><span class="prefix">▸</span>HumanResources</div>
+      <div class="s-item" style="--d:1"><span class="prefix">▸</span>Purchasing</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="editor">
+      <div class="editor-toolbar">
+        <button class="exec-btn">exec</button>
+        <button class="cancel-btn">abort</button>
+        <span style="flex:1"></span>
+        <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:2px">T-SQL</span>
+      </div>
+      <div class="ai-bar">
+        <span class="ai-tag">copilot</span>
+        <input class="ai-field" type="text" placeholder="describe query goal..." />
+        <button class="gen-btn">gen</button>
+      </div>
+      <div class="code">
+        <div class="code-line"><span class="ln">1</span><span class="cm">-- Top 10 customers by total order value</span></div>
+        <div class="code-line cur"><span class="ln">2</span><span class="kw">SELECT TOP</span> <span class="num">10</span></div>
+        <div class="code-line"><span class="ln">3</span>    c.CustomerID,</div>
+        <div class="code-line"><span class="ln">4</span>    p.FirstName + <span class="str">' '</span> + p.LastName <span class="kw">AS</span> CustomerName,</div>
+        <div class="code-line"><span class="ln">5</span>    <span class="fn">COUNT</span>(soh.SalesOrderID) <span class="kw">AS</span> OrderCount,</div>
+        <div class="code-line"><span class="ln">6</span>    <span class="fn">SUM</span>(soh.TotalDue) <span class="kw">AS</span> TotalSpend</div>
+        <div class="code-line"><span class="ln">7</span><span class="kw">FROM</span> <span class="tbl">Sales.Customer</span> c</div>
+        <div class="code-line"><span class="ln">8</span><span class="kw">JOIN</span> <span class="tbl">Person.Person</span> p <span class="kw">ON</span> c.PersonID = p.BusinessEntityID</div>
+        <div class="code-line"><span class="ln">9</span><span class="kw">JOIN</span> <span class="tbl">Sales.SalesOrderHeader</span> soh <span class="kw">ON</span> c.CustomerID = soh.CustomerID</div>
+        <div class="code-line"><span class="ln">10</span><span class="kw">GROUP BY</span> c.CustomerID, p.FirstName, p.LastName</div>
+        <div class="code-line"><span class="ln">11</span><span class="kw">ORDER BY</span> TotalSpend <span class="kw">DESC</span>;</div>
+      </div>
+    </div>
+
+    <div class="results">
+      <div class="results-head">
+        <span>output</span>
+        <span class="stat">10 rows</span>
+        <span>42ms</span>
+        <span style="margin-left:auto">ok</span>
+      </div>
+      <div class="grid-wrap">
+        <table>
+          <thead><tr><th>customerid</th><th>customername</th><th class="r">ordercount</th><th class="r">totalspend</th></tr></thead>
+          <tbody>
+            <tr><td class="nv">29825</td><td>Linda Mitchell</td><td class="r nv">28</td><td class="r nv">1,095,747.33</td></tr>
+            <tr><td class="nv">29672</td><td>Jillian Carson</td><td class="r nv">27</td><td class="r nv">1,062,351.08</td></tr>
+            <tr><td class="nv">29734</td><td>Michael Blythe</td><td class="r nv">26</td><td class="r nv">985,214.77</td></tr>
+            <tr><td class="nv">29994</td><td>Jae Pak</td><td class="r nv">25</td><td class="r nv">968,103.52</td></tr>
+            <tr><td class="nv">29551</td><td>Tsvi Reiter</td><td class="r nv">24</td><td class="r nv">912,847.19</td></tr>
+            <tr><td class="nv">29587</td><td>Shu Ito</td><td class="r nv">23</td><td class="r nv">873,691.44</td></tr>
+            <tr><td class="nv">29901</td><td>José Saraiva</td><td class="r nv">22</td><td class="r nv">847,252.61</td></tr>
+            <tr><td class="nv">30072</td><td>David Campbell</td><td class="r nv">21</td><td class="r nv">791,108.85</td></tr>
+            <tr><td class="nv">29485</td><td>Garrett Vargas</td><td class="r nv">20</td><td class="r nv">754,329.07</td></tr>
+            <tr><td class="nv">30117</td><td>Pamela Ansman-Wolfe</td><td class="r nv">19</td><td class="r nv">721,460.92</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="status">
+    <span>● connected</span>
+    <span>sql-prod-01 / adventureworks2022</span>
+    <span>app_readonly</span>
+    <span style="margin-left:auto">ln 2 col 18</span>
+    <span>t-sql</span>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>DB Genie — Soft Gradient</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Fira+Code:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #13111c;
+    --surface: #1a1726;
+    --surface-raised: #211e30;
+    --border: #2a2640;
+    --text: #e2dff0;
+    --text-dim: #8b84a8;
+    --text-muted: #4a4562;
+    --pink: #f472b6;
+    --purple: #a78bfa;
+    --blue: #60a5fa;
+    --teal: #5eead4;
+    --peach: #fca89d;
+    --mono: 'Fira Code', monospace;
+    --sans: 'Instrument Sans', sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    width: 1440px;
+    overflow: hidden;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Background gradients */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -100px;
+    right: -100px;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(244,114,182,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -200px;
+    left: 200px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(96,165,250,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: 1fr 28px;
+    height: 100vh;
+    gap: 0;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-brand {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .sidebar-brand .icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: white;
+    font-weight: 700;
+  }
+
+  .sidebar-brand .name {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+
+  .sidebar-brand .name span {
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Connection */
+  .conn-area {
+    padding: 16px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .profile-pill {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 14px;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .profile-pill:hover { border-color: var(--purple); }
+
+  .profile-pill .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--teal);
+    box-shadow: 0 0 10px rgba(94,234,212,0.4);
+  }
+
+  .profile-pill .details {
+    flex: 1;
+  }
+
+  .profile-pill .prof-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .profile-pill .prof-sub {
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--text-dim);
+  }
+
+  .profile-pill .chevron { color: var(--text-muted); font-size: 10px; }
+
+  .conn-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .meta-item {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+
+  .meta-item .m-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+
+  .meta-item .m-value {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .conn-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .btn-soft {
+    flex: 1;
+    padding: 7px 0;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-soft:hover { border-color: var(--text-muted); color: var(--text); }
+
+  /* Schema */
+  .schema-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 8px;
+  }
+
+  .schema-area::-webkit-scrollbar { width: 3px; }
+  .schema-area::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+  .schema-area .section-label { padding: 0 8px; margin-bottom: 8px; }
+
+  .node {
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+    padding-left: calc(10px + var(--depth, 0) * 16px);
+    border-radius: 8px;
+    cursor: pointer;
+    gap: 8px;
+    transition: all 0.12s;
+  }
+
+  .node:hover { background: rgba(167,139,250,0.06); }
+  .node.active { background: rgba(167,139,250,0.1); }
+
+  .node .arrow { font-size: 9px; color: var(--text-muted); width: 12px; }
+  .node.active .arrow { color: var(--purple); }
+
+  .node .label {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .node.active .label { color: var(--purple); font-weight: 500; }
+
+  .node .tag {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .node .type-tag {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-muted);
+  }
+
+  /* Main */
+  .main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Editor */
+  .editor {
+    flex: 1.2;
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--border);
+    min-height: 0;
+  }
+
+  .editor-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .run-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 18px;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    box-shadow: 0 2px 12px rgba(167,139,250,0.3);
+  }
+
+  .run-btn:hover { opacity: 0.9; }
+
+  .cancel-btn {
+    padding: 7px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-family: var(--sans);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .cancel-btn:hover { border-color: var(--text-muted); color: var(--text); }
+
+  .ai-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 12px;
+  }
+
+  .ai-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    background: linear-gradient(135deg, rgba(244,114,182,0.15), rgba(167,139,250,0.15));
+    border: 1px solid rgba(167,139,250,0.2);
+    border-radius: 6px;
+    color: var(--purple);
+    flex-shrink: 0;
+  }
+
+  .ai-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 12px;
+    outline: none;
+    transition: all 0.2s;
+  }
+
+  .ai-input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(167,139,250,0.1); }
+  .ai-input::placeholder { color: var(--text-muted); }
+
+  .code-editor {
+    flex: 1;
+    overflow: auto;
+    padding: 16px 20px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.75;
+  }
+
+  .code-editor::-webkit-scrollbar { width: 3px; }
+  .code-editor::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+  .cl { white-space: pre; }
+  .cl.cur { background: rgba(244,114,182,0.04); margin: 0 -20px; padding: 0 20px; }
+  .ln { display: inline-block; width: 24px; text-align: right; margin-right: 20px; color: var(--text-muted); user-select: none; font-size: 11px; }
+  .kw { color: var(--pink); font-weight: 500; }
+  .fn { color: var(--blue); }
+  .str { color: var(--teal); }
+  .num { color: var(--peach); }
+  .cm { color: var(--text-muted); font-style: italic; }
+  .tbl { color: var(--purple); }
+
+  /* Results */
+  .results {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .results-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .results-bar .title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+  }
+
+  .stat-chip {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 10px;
+    background: var(--bg);
+    border-radius: 6px;
+    color: var(--text-dim);
+  }
+
+  .results-grid {
+    flex: 1;
+    overflow: auto;
+  }
+
+  .results-grid::-webkit-scrollbar { width: 3px; height: 3px; }
+  .results-grid::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  thead { position: sticky; top: 0; }
+  th {
+    background: var(--surface);
+    padding: 8px 16px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 11px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 6px 16px;
+    border-bottom: 1px solid rgba(42,38,64,0.5);
+    color: var(--text-dim);
+  }
+
+  tr:hover td { background: rgba(167,139,250,0.05); color: var(--text); }
+  .r { text-align: right; }
+  .nv { color: var(--peach); }
+
+  /* Status */
+  .statusbar {
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 16px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .statusbar .conn-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--teal);
+    display: inline-block;
+    margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <div class="icon">G</div>
+      <div class="name">DB <span>Genie</span></div>
+    </div>
+
+    <div class="conn-area">
+      <div class="section-label">Connection</div>
+      <div class="profile-pill">
+        <div class="status-dot"></div>
+        <div class="details">
+          <div class="prof-name">Production</div>
+          <div class="prof-sub">sql-prod-01 / AdventureWorks2022</div>
+        </div>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="conn-meta">
+        <div class="meta-item"><div class="m-label">Server</div><div class="m-value">sql-prod-01</div></div>
+        <div class="meta-item"><div class="m-label">Port</div><div class="m-value">1433</div></div>
+        <div class="meta-item"><div class="m-label">Database</div><div class="m-value">AdventureWorks</div></div>
+        <div class="meta-item"><div class="m-label">User</div><div class="m-value">app_readonly</div></div>
+      </div>
+      <div class="conn-actions">
+        <button class="btn-soft">Disconnect</button>
+        <button class="btn-soft">Refresh</button>
+      </div>
+    </div>
+
+    <div class="schema-area">
+      <div class="section-label">Schema</div>
+      <div class="node" style="--depth:0"><span class="arrow">▾</span><span class="label">AdventureWorks2022</span></div>
+      <div class="node" style="--depth:1"><span class="arrow">▾</span><span class="label">Sales</span></div>
+      <div class="node active" style="--depth:2"><span class="arrow">◫</span><span class="label">Customer</span><span class="tag">19,820</span></div>
+      <div class="node" style="--depth:3"><span class="arrow">·</span><span class="label">CustomerID</span><span class="type-tag">int PK</span></div>
+      <div class="node" style="--depth:3"><span class="arrow">·</span><span class="label">PersonID</span><span class="type-tag">int</span></div>
+      <div class="node" style="--depth:3"><span class="arrow">·</span><span class="label">StoreID</span><span class="type-tag">int</span></div>
+      <div class="node" style="--depth:3"><span class="arrow">·</span><span class="label">TerritoryID</span><span class="type-tag">int</span></div>
+      <div class="node" style="--depth:3"><span class="arrow">·</span><span class="label">AccountNumber</span><span class="type-tag">varchar</span></div>
+      <div class="node" style="--depth:3"><span class="arrow">·</span><span class="label">ModifiedDate</span><span class="type-tag">datetime</span></div>
+      <div class="node" style="--depth:2"><span class="arrow">◫</span><span class="label">SalesOrderHeader</span><span class="tag">31,465</span></div>
+      <div class="node" style="--depth:2"><span class="arrow">◫</span><span class="label">SalesOrderDetail</span><span class="tag">121,317</span></div>
+      <div class="node" style="--depth:2"><span class="arrow">◫</span><span class="label">SalesTerritory</span><span class="tag">10</span></div>
+      <div class="node" style="--depth:1"><span class="arrow">▾</span><span class="label">Person</span></div>
+      <div class="node" style="--depth:2"><span class="arrow">◫</span><span class="label">Person</span><span class="tag">19,972</span></div>
+      <div class="node" style="--depth:2"><span class="arrow">◫</span><span class="label">Address</span><span class="tag">19,614</span></div>
+      <div class="node" style="--depth:1"><span class="arrow">▸</span><span class="label">Production</span></div>
+      <div class="node" style="--depth:1"><span class="arrow">▸</span><span class="label">HumanResources</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="editor">
+      <div class="editor-top">
+        <button class="run-btn">▶ Run</button>
+        <button class="cancel-btn">Cancel</button>
+        <div class="ai-wrap">
+          <span class="ai-badge">AI</span>
+          <input class="ai-input" type="text" placeholder="Ask Copilot to write SQL..." />
+        </div>
+      </div>
+      <div class="code-editor">
+        <div class="cl"><span class="ln">1</span><span class="cm">-- Top 10 customers by total order value</span></div>
+        <div class="cl cur"><span class="ln">2</span><span class="kw">SELECT TOP</span> <span class="num">10</span></div>
+        <div class="cl"><span class="ln">3</span>    c.CustomerID,</div>
+        <div class="cl"><span class="ln">4</span>    p.FirstName + <span class="str">' '</span> + p.LastName <span class="kw">AS</span> CustomerName,</div>
+        <div class="cl"><span class="ln">5</span>    <span class="fn">COUNT</span>(soh.SalesOrderID) <span class="kw">AS</span> OrderCount,</div>
+        <div class="cl"><span class="ln">6</span>    <span class="fn">SUM</span>(soh.TotalDue) <span class="kw">AS</span> TotalSpend</div>
+        <div class="cl"><span class="ln">7</span><span class="kw">FROM</span> <span class="tbl">Sales.Customer</span> c</div>
+        <div class="cl"><span class="ln">8</span><span class="kw">JOIN</span> <span class="tbl">Person.Person</span> p <span class="kw">ON</span> c.PersonID = p.BusinessEntityID</div>
+        <div class="cl"><span class="ln">9</span><span class="kw">JOIN</span> <span class="tbl">Sales.SalesOrderHeader</span> soh <span class="kw">ON</span> c.CustomerID = soh.CustomerID</div>
+        <div class="cl"><span class="ln">10</span><span class="kw">GROUP BY</span> c.CustomerID, p.FirstName, p.LastName</div>
+        <div class="cl"><span class="ln">11</span><span class="kw">ORDER BY</span> TotalSpend <span class="kw">DESC</span>;</div>
+      </div>
+    </div>
+
+    <div class="results">
+      <div class="results-bar">
+        <span class="title">Results</span>
+        <span class="stat-chip">10 rows</span>
+        <span class="stat-chip">42ms</span>
+      </div>
+      <div class="results-grid">
+        <table>
+          <thead><tr><th>CustomerID</th><th>CustomerName</th><th class="r">OrderCount</th><th class="r">TotalSpend</th></tr></thead>
+          <tbody>
+            <tr><td class="nv">29825</td><td>Linda Mitchell</td><td class="r nv">28</td><td class="r nv">1,095,747.33</td></tr>
+            <tr><td class="nv">29672</td><td>Jillian Carson</td><td class="r nv">27</td><td class="r nv">1,062,351.08</td></tr>
+            <tr><td class="nv">29734</td><td>Michael Blythe</td><td class="r nv">26</td><td class="r nv">985,214.77</td></tr>
+            <tr><td class="nv">29994</td><td>Jae Pak</td><td class="r nv">25</td><td class="r nv">968,103.52</td></tr>
+            <tr><td class="nv">29551</td><td>Tsvi Reiter</td><td class="r nv">24</td><td class="r nv">912,847.19</td></tr>
+            <tr><td class="nv">29587</td><td>Shu Ito</td><td class="r nv">23</td><td class="r nv">873,691.44</td></tr>
+            <tr><td class="nv">29901</td><td>José Saraiva</td><td class="r nv">22</td><td class="r nv">847,252.61</td></tr>
+            <tr><td class="nv">30072</td><td>David Campbell</td><td class="r nv">21</td><td class="r nv">791,108.85</td></tr>
+            <tr><td class="nv">29485</td><td>Garrett Vargas</td><td class="r nv">20</td><td class="r nv">754,329.07</td></tr>
+            <tr><td class="nv">30117</td><td>Pamela Ansman-Wolfe</td><td class="r nv">19</td><td class="r nv">721,460.92</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <span><span class="conn-dot"></span>sql-prod-01 / AdventureWorks2022</span>
+    <span>app_readonly</span>
+    <span style="margin-left:auto">Ln 2, Col 18</span>
+  </div>
+</div>
+</body>
+</html>

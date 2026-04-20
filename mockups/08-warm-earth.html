@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>DB Genie — Warm Earth</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@300;400;500;600;700&family=Newsreader:wght@300;400;500;600&family=Newsreader:ital,wght@1,300;1,400&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #1a1614;
+    --surface: #211d1a;
+    --raised: #2a2521;
+    --border: #362f2a;
+    --text: #d4ccc4;
+    --text-dim: #968b80;
+    --text-muted: #5c544c;
+    --gold: #d4a053;
+    --gold-soft: rgba(212,160,83,0.1);
+    --sage: #8fbc8b;
+    --clay: #c47d5e;
+    --mono: 'Inconsolata', monospace;
+    --serif: 'Newsreader', Georgia, serif;
+  }
+
+  body {
+    font-family: var(--serif);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    width: 1440px;
+    overflow: hidden;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Subtle texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.01'%3E%3Cpath d='M20 20.5V18H0v-2h20v-2H0V0h2v14h16V0h2v14h16V0h2v14h2v2h-2v2h2v2H22v2h18v2H22v16h-2V24H4v16H2V24H0v-2h20v-2H0v-2h20z'/%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 290px 1fr;
+    grid-template-rows: 1fr 1fr 26px;
+    height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    grid-row: 1 / 3;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-header h1 {
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--gold);
+    letter-spacing: -0.5px;
+  }
+
+  .sidebar-header .sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    font-style: italic;
+  }
+
+  /* Connection */
+  .conn-section {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .conn-section .label {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    font-family: var(--mono);
+  }
+
+  .profile-card {
+    background: var(--raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .profile-card:hover { border-color: var(--gold); }
+
+  .profile-card .top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .profile-card .name {
+    font-family: var(--serif);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .profile-card .status {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--sage);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .profile-card .status .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--sage);
+  }
+
+  .profile-card .details {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .conn-btns {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .btn-warm {
+    flex: 1;
+    padding: 6px 0;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: var(--serif);
+    font-size: 12px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-warm:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* Schema */
+  .schema-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 8px;
+  }
+
+  .schema-area::-webkit-scrollbar { width: 3px; }
+  .schema-area::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+  .schema-area .label {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    padding: 0 8px;
+    margin-bottom: 8px;
+  }
+
+  .tn {
+    display: flex;
+    align-items: center;
+    padding: 4px 10px;
+    padding-left: calc(10px + var(--d, 0) * 16px);
+    border-radius: 4px;
+    cursor: pointer;
+    gap: 8px;
+    transition: background 0.1s;
+  }
+
+  .tn:hover { background: var(--gold-soft); }
+  .tn.sel { background: var(--gold-soft); }
+
+  .tn .caret { font-size: 9px; color: var(--text-muted); width: 10px; }
+  .tn.sel .caret { color: var(--gold); }
+
+  .tn .nm {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .tn.sel .nm { color: var(--gold); font-weight: 500; }
+
+  .tn .info {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  /* Editor */
+  .editor {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .editor-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .run-btn {
+    padding: 6px 18px;
+    background: var(--gold);
+    border: none;
+    border-radius: 4px;
+    font-family: var(--serif);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--bg);
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .run-btn:hover { opacity: 0.85; }
+
+  .cancel-btn {
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: var(--serif);
+    font-size: 12px;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+
+  .cancel-btn:hover { border-color: var(--text-muted); }
+
+  .ai-area {
+    flex: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 16px;
+  }
+
+  .ai-label {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .ai-input {
+    width: 320px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-family: var(--serif);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .ai-input:focus { border-color: var(--gold); }
+  .ai-input::placeholder { color: var(--text-muted); font-style: italic; }
+
+  .code {
+    flex: 1;
+    overflow: auto;
+    padding: 16px 20px;
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.7;
+    font-weight: 400;
+  }
+
+  .code::-webkit-scrollbar { width: 3px; }
+  .code::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+  .cl { white-space: pre; }
+  .cl.cur { background: var(--gold-soft); margin: 0 -20px; padding: 0 20px; }
+  .ln { display: inline-block; width: 24px; text-align: right; margin-right: 20px; color: var(--text-muted); user-select: none; font-size: 12px; }
+  .kw { color: var(--gold); font-weight: 600; }
+  .fn { color: var(--sage); }
+  .str { color: var(--sage); }
+  .num { color: var(--clay); }
+  .cm { color: var(--text-muted); font-style: italic; }
+  .tbl { color: var(--clay); }
+
+  /* Results */
+  .results {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .r-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .r-bar .title {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .r-chip {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+
+  .r-grid {
+    flex: 1;
+    overflow: auto;
+  }
+
+  .r-grid::-webkit-scrollbar { width: 3px; height: 3px; }
+  .r-grid::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  thead { position: sticky; top: 0; }
+  th {
+    background: var(--surface);
+    padding: 8px 14px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 11px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 6px 14px;
+    border-bottom: 1px solid #2a2420;
+    color: var(--text-dim);
+  }
+
+  tr:hover td { background: var(--gold-soft); color: var(--text); }
+  .r { text-align: right; }
+  .nv { color: var(--clay); }
+
+  /* Status */
+  .statusbar {
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    gap: 16px;
+  }
+
+  .statusbar .gold { color: var(--gold); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>DB Genie</h1>
+      <div class="sub">SQL workbench for SQL Server</div>
+    </div>
+
+    <div class="conn-section">
+      <div class="label">Connection</div>
+      <div class="profile-card">
+        <div class="top">
+          <span class="name">Production</span>
+          <span class="status"><span class="dot"></span> connected</span>
+        </div>
+        <div class="details">
+          sql-prod-01.corp.net:1433<br>
+          AdventureWorks2022 · app_readonly
+        </div>
+      </div>
+      <div class="conn-btns">
+        <button class="btn-warm">Disconnect</button>
+        <button class="btn-warm">Refresh</button>
+        <button class="btn-warm">Profiles ▾</button>
+      </div>
+    </div>
+
+    <div class="schema-area">
+      <div class="label">Schema</div>
+      <div class="tn" style="--d:0"><span class="caret">▾</span><span class="nm">Sales</span></div>
+      <div class="tn sel" style="--d:1"><span class="caret">▾</span><span class="nm">Customer</span><span class="info">19,820</span></div>
+      <div class="tn" style="--d:2"><span class="caret">·</span><span class="nm">CustomerID</span><span class="info">int PK</span></div>
+      <div class="tn" style="--d:2"><span class="caret">·</span><span class="nm">PersonID</span><span class="info">int</span></div>
+      <div class="tn" style="--d:2"><span class="caret">·</span><span class="nm">StoreID</span><span class="info">int</span></div>
+      <div class="tn" style="--d:2"><span class="caret">·</span><span class="nm">TerritoryID</span><span class="info">int</span></div>
+      <div class="tn" style="--d:2"><span class="caret">·</span><span class="nm">AccountNumber</span><span class="info">varchar</span></div>
+      <div class="tn" style="--d:2"><span class="caret">·</span><span class="nm">ModifiedDate</span><span class="info">datetime</span></div>
+      <div class="tn" style="--d:1"><span class="caret">▸</span><span class="nm">SalesOrderHeader</span><span class="info">31,465</span></div>
+      <div class="tn" style="--d:1"><span class="caret">▸</span><span class="nm">SalesOrderDetail</span><span class="info">121,317</span></div>
+      <div class="tn" style="--d:1"><span class="caret">▸</span><span class="nm">SalesTerritory</span><span class="info">10</span></div>
+      <div class="tn" style="--d:0"><span class="caret">▾</span><span class="nm">Person</span></div>
+      <div class="tn" style="--d:1"><span class="caret">▸</span><span class="nm">Person</span><span class="info">19,972</span></div>
+      <div class="tn" style="--d:1"><span class="caret">▸</span><span class="nm">Address</span><span class="info">19,614</span></div>
+      <div class="tn" style="--d:0"><span class="caret">▸</span><span class="nm">Production</span></div>
+      <div class="tn" style="--d:0"><span class="caret">▸</span><span class="nm">HumanResources</span></div>
+      <div class="tn" style="--d:0"><span class="caret">▸</span><span class="nm">Purchasing</span></div>
+    </div>
+  </div>
+
+  <div class="editor">
+    <div class="editor-bar">
+      <button class="run-btn">▶ Run query</button>
+      <button class="cancel-btn">Cancel</button>
+      <div class="ai-area">
+        <span class="ai-label">Copilot:</span>
+        <input class="ai-input" type="text" placeholder="Describe your query in plain English..." />
+      </div>
+    </div>
+    <div class="code">
+      <div class="cl"><span class="ln">1</span><span class="cm">-- Top 10 customers by total order value</span></div>
+      <div class="cl cur"><span class="ln">2</span><span class="kw">SELECT TOP</span> <span class="num">10</span></div>
+      <div class="cl"><span class="ln">3</span>    c.CustomerID,</div>
+      <div class="cl"><span class="ln">4</span>    p.FirstName + <span class="str">' '</span> + p.LastName <span class="kw">AS</span> CustomerName,</div>
+      <div class="cl"><span class="ln">5</span>    <span class="fn">COUNT</span>(soh.SalesOrderID) <span class="kw">AS</span> OrderCount,</div>
+      <div class="cl"><span class="ln">6</span>    <span class="fn">SUM</span>(soh.TotalDue) <span class="kw">AS</span> TotalSpend</div>
+      <div class="cl"><span class="ln">7</span><span class="kw">FROM</span> <span class="tbl">Sales.Customer</span> c</div>
+      <div class="cl"><span class="ln">8</span><span class="kw">JOIN</span> <span class="tbl">Person.Person</span> p <span class="kw">ON</span> c.PersonID = p.BusinessEntityID</div>
+      <div class="cl"><span class="ln">9</span><span class="kw">JOIN</span> <span class="tbl">Sales.SalesOrderHeader</span> soh <span class="kw">ON</span> c.CustomerID = soh.CustomerID</div>
+      <div class="cl"><span class="ln">10</span><span class="kw">GROUP BY</span> c.CustomerID, p.FirstName, p.LastName</div>
+      <div class="cl"><span class="ln">11</span><span class="kw">ORDER BY</span> TotalSpend <span class="kw">DESC</span>;</div>
+    </div>
+  </div>
+
+  <div class="results">
+    <div class="r-bar">
+      <span class="title">Results</span>
+      <span class="r-chip">10 rows</span>
+      <span class="r-chip">42ms</span>
+    </div>
+    <div class="r-grid">
+      <table>
+        <thead><tr><th>CustomerID</th><th>CustomerName</th><th class="r">OrderCount</th><th class="r">TotalSpend</th></tr></thead>
+        <tbody>
+          <tr><td class="nv">29825</td><td>Linda Mitchell</td><td class="r nv">28</td><td class="r nv">1,095,747.33</td></tr>
+          <tr><td class="nv">29672</td><td>Jillian Carson</td><td class="r nv">27</td><td class="r nv">1,062,351.08</td></tr>
+          <tr><td class="nv">29734</td><td>Michael Blythe</td><td class="r nv">26</td><td class="r nv">985,214.77</td></tr>
+          <tr><td class="nv">29994</td><td>Jae Pak</td><td class="r nv">25</td><td class="r nv">968,103.52</td></tr>
+          <tr><td class="nv">29551</td><td>Tsvi Reiter</td><td class="r nv">24</td><td class="r nv">912,847.19</td></tr>
+          <tr><td class="nv">29587</td><td>Shu Ito</td><td class="r nv">23</td><td class="r nv">873,691.44</td></tr>
+          <tr><td class="nv">29901</td><td>José Saraiva</td><td class="r nv">22</td><td class="r nv">847,252.61</td></tr>
+          <tr><td class="nv">30072</td><td>David Campbell</td><td class="r nv">21</td><td class="r nv">791,108.85</td></tr>
+          <tr><td class="nv">29485</td><td>Garrett Vargas</td><td class="r nv">20</td><td class="r nv">754,329.07</td></tr>
+          <tr><td class="nv">30117</td><td>Pamela Ansman-Wolfe</td><td class="r nv">19</td><td class="r nv">721,460.92</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <span><span class="gold">●</span> sql-prod-01 / AdventureWorks2022</span>
+    <span>app_readonly</span>
+    <span style="margin-left:auto">Ln 2, Col 18</span>
+  </div>
+</div>
+</body>
+</html>

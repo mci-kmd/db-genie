@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>DB Genie — Dense Pro</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500;600&family=Manrope:wght@300;400;500;600;700&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0c0c0e;
+    --surface: #131316;
+    --raised: #1a1a1e;
+    --border: #252529;
+    --text: #d1d1d6;
+    --text-dim: #7c7c85;
+    --text-muted: #3e3e44;
+    --orange: #f97316;
+    --orange-soft: rgba(249,115,22,0.1);
+    --mono: 'Source Code Pro', monospace;
+    --sans: 'Manrope', sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    width: 1440px;
+    overflow: hidden;
+    font-size: 12px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Dense layout: narrow sidebar, wide editor, compact results below */
+  .app {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: 32px 1fr 220px 22px;
+    height: 100vh;
+  }
+
+  /* Compact top bar */
+  .topbar {
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 10px;
+    font-size: 11px;
+  }
+
+  .topbar .brand {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .topbar .brand span { color: var(--orange); }
+
+  .topbar .pipe { color: var(--text-muted); }
+
+  .topbar .conn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .topbar .conn .d {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #22c55e;
+  }
+
+  .topbar .actions {
+    margin-left: auto;
+    display: flex;
+    gap: 2px;
+  }
+
+  .tb {
+    padding: 3px 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+
+  .tb:hover { border-color: var(--text-muted); color: var(--text); }
+  .tb.run { background: var(--orange); border-color: var(--orange); color: white; }
+  .tb.run:hover { opacity: 0.9; }
+
+  /* Sidebar */
+  .sidebar {
+    grid-row: 2 / 4;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .s-conn {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .s-conn select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 10px;
+    outline: none;
+    appearance: none;
+  }
+
+  .s-conn-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 1px 8px;
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+  }
+
+  .s-conn-grid .k { color: var(--text-muted); }
+  .s-conn-grid .v { color: var(--text-dim); }
+
+  .s-conn-btns {
+    display: flex;
+    gap: 3px;
+    margin-top: 6px;
+  }
+
+  .s-conn-btns button {
+    flex: 1;
+    padding: 3px;
+    background: var(--raised);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-dim);
+    font-size: 10px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+
+  .s-conn-btns button:hover { border-color: var(--text-muted); }
+
+  .s-head {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+  }
+
+  .s-tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 4px;
+  }
+
+  .s-tree::-webkit-scrollbar { width: 2px; }
+  .s-tree::-webkit-scrollbar-thumb { background: var(--text-muted); }
+
+  .nd {
+    display: flex;
+    align-items: center;
+    padding: 2px 6px;
+    padding-left: calc(6px + var(--d, 0) * 12px);
+    border-radius: 3px;
+    cursor: pointer;
+    gap: 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    transition: background 0.06s;
+  }
+
+  .nd:hover { background: var(--orange-soft); }
+  .nd.a { background: var(--orange-soft); color: var(--orange); }
+  .nd .ar { font-size: 7px; color: var(--text-muted); width: 8px; }
+  .nd.a .ar { color: var(--orange); }
+  .nd .ct { margin-left: auto; font-size: 9px; color: var(--text-muted); }
+
+  /* Editor */
+  .editor {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .ai-strip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .ai-strip .label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--orange);
+    flex-shrink: 0;
+  }
+
+  .ai-strip input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-family: var(--sans);
+    font-size: 11px;
+    outline: none;
+  }
+
+  .ai-strip input:focus { border-color: var(--orange); }
+  .ai-strip input::placeholder { color: var(--text-muted); }
+
+  .ai-strip button {
+    padding: 4px 10px;
+    background: var(--orange-soft);
+    border: 1px solid rgba(249,115,22,0.3);
+    border-radius: 4px;
+    color: var(--orange);
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .ai-strip button:hover { background: rgba(249,115,22,0.15); }
+
+  .code {
+    flex: 1;
+    overflow: auto;
+    padding: 10px 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  .code::-webkit-scrollbar { width: 2px; }
+  .code::-webkit-scrollbar-thumb { background: var(--text-muted); }
+
+  .cl { white-space: pre; }
+  .cl.c { background: var(--orange-soft); margin: 0 -16px; padding: 0 16px; }
+  .ln { display: inline-block; width: 20px; text-align: right; margin-right: 16px; color: var(--text-muted); user-select: none; font-size: 10px; }
+  .kw { color: var(--orange); font-weight: 500; }
+  .fn { color: #60a5fa; }
+  .str { color: #4ade80; }
+  .num { color: #f472b6; }
+  .cm { color: var(--text-muted); font-style: italic; }
+  .tbl { color: #fbbf24; }
+
+  /* Results */
+  .results {
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .r-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 10px;
+  }
+
+  .r-head .title {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+  }
+
+  .r-chip {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: var(--bg);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  .r-grid {
+    flex: 1;
+    overflow: auto;
+  }
+
+  .r-grid::-webkit-scrollbar { width: 2px; height: 2px; }
+  .r-grid::-webkit-scrollbar-thumb { background: var(--text-muted); }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
+  thead { position: sticky; top: 0; }
+  th {
+    background: var(--surface);
+    padding: 4px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 3px 12px;
+    border-bottom: 1px solid #18181b;
+    color: var(--text-dim);
+  }
+
+  tr:hover td { background: var(--orange-soft); }
+  .r { text-align: right; }
+  .nv { color: #f472b6; }
+
+  /* Status */
+  .statusbar {
+    grid-column: 1 / -1;
+    background: var(--orange);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 10px;
+    font-weight: 600;
+    color: white;
+    gap: 12px;
+  }
+
+  .statusbar .mono { font-family: var(--mono); font-weight: 400; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Top bar -->
+  <div class="topbar">
+    <span class="brand">db<span>genie</span></span>
+    <span class="pipe">|</span>
+    <span class="conn"><span class="d"></span> sql-prod-01 / AdventureWorks2022</span>
+    <div class="actions">
+      <button class="tb run">▶ Run</button>
+      <button class="tb">Cancel</button>
+      <button class="tb">SELECT ✱</button>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="s-conn">
+      <select>
+        <option>Production — AdventureWorks</option>
+        <option>Staging</option>
+        <option>Local</option>
+      </select>
+      <div class="s-conn-grid">
+        <span class="k">srv</span><span class="v">sql-prod-01</span>
+        <span class="k">db</span><span class="v">AdventureWorks2022</span>
+        <span class="k">usr</span><span class="v">app_readonly</span>
+      </div>
+      <div class="s-conn-btns">
+        <button>Disconnect</button>
+        <button>Refresh</button>
+      </div>
+    </div>
+    <div class="s-head">Schema</div>
+    <div class="s-tree">
+      <div class="nd" style="--d:0"><span class="ar">▾</span>Sales</div>
+      <div class="nd a" style="--d:1"><span class="ar">▾</span>Customer<span class="ct">19,820</span></div>
+      <div class="nd" style="--d:2"><span class="ar">·</span>CustomerID<span class="ct">int pk</span></div>
+      <div class="nd" style="--d:2"><span class="ar">·</span>PersonID<span class="ct">int</span></div>
+      <div class="nd" style="--d:2"><span class="ar">·</span>StoreID<span class="ct">int</span></div>
+      <div class="nd" style="--d:2"><span class="ar">·</span>TerritoryID<span class="ct">int</span></div>
+      <div class="nd" style="--d:2"><span class="ar">·</span>AccountNumber<span class="ct">varchar</span></div>
+      <div class="nd" style="--d:2"><span class="ar">·</span>ModifiedDate<span class="ct">datetime</span></div>
+      <div class="nd" style="--d:1"><span class="ar">▸</span>SalesOrderHeader<span class="ct">31,465</span></div>
+      <div class="nd" style="--d:1"><span class="ar">▸</span>SalesOrderDetail<span class="ct">121,317</span></div>
+      <div class="nd" style="--d:1"><span class="ar">▸</span>SalesTerritory<span class="ct">10</span></div>
+      <div class="nd" style="--d:1"><span class="ar">▸</span>Store<span class="ct">701</span></div>
+      <div class="nd" style="--d:0"><span class="ar">▾</span>Person</div>
+      <div class="nd" style="--d:1"><span class="ar">▸</span>Person<span class="ct">19,972</span></div>
+      <div class="nd" style="--d:1"><span class="ar">▸</span>Address<span class="ct">19,614</span></div>
+      <div class="nd" style="--d:1"><span class="ar">▸</span>EmailAddress<span class="ct">19,972</span></div>
+      <div class="nd" style="--d:0"><span class="ar">▸</span>Production</div>
+      <div class="nd" style="--d:0"><span class="ar">▸</span>HumanResources</div>
+      <div class="nd" style="--d:0"><span class="ar">▸</span>Purchasing</div>
+    </div>
+  </div>
+
+  <!-- Editor -->
+  <div class="editor">
+    <div class="ai-strip">
+      <span class="label">AI</span>
+      <input type="text" placeholder="Describe what you need..." />
+      <button>Generate</button>
+    </div>
+    <div class="code">
+      <div class="cl"><span class="ln">1</span><span class="cm">-- Top 10 customers by total order value</span></div>
+      <div class="cl c"><span class="ln">2</span><span class="kw">SELECT TOP</span> <span class="num">10</span></div>
+      <div class="cl"><span class="ln">3</span>    c.CustomerID,</div>
+      <div class="cl"><span class="ln">4</span>    p.FirstName + <span class="str">' '</span> + p.LastName <span class="kw">AS</span> CustomerName,</div>
+      <div class="cl"><span class="ln">5</span>    <span class="fn">COUNT</span>(soh.SalesOrderID) <span class="kw">AS</span> OrderCount,</div>
+      <div class="cl"><span class="ln">6</span>    <span class="fn">SUM</span>(soh.TotalDue) <span class="kw">AS</span> TotalSpend</div>
+      <div class="cl"><span class="ln">7</span><span class="kw">FROM</span> <span class="tbl">Sales.Customer</span> c</div>
+      <div class="cl"><span class="ln">8</span><span class="kw">JOIN</span> <span class="tbl">Person.Person</span> p <span class="kw">ON</span> c.PersonID = p.BusinessEntityID</div>
+      <div class="cl"><span class="ln">9</span><span class="kw">JOIN</span> <span class="tbl">Sales.SalesOrderHeader</span> soh <span class="kw">ON</span> c.CustomerID = soh.CustomerID</div>
+      <div class="cl"><span class="ln">10</span><span class="kw">GROUP BY</span> c.CustomerID, p.FirstName, p.LastName</div>
+      <div class="cl"><span class="ln">11</span><span class="kw">ORDER BY</span> TotalSpend <span class="kw">DESC</span>;</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results">
+    <div class="r-head">
+      <span class="title">Results</span>
+      <span class="r-chip">10 rows</span>
+      <span class="r-chip">42ms</span>
+    </div>
+    <div class="r-grid">
+      <table>
+        <thead><tr><th>CustomerID</th><th>CustomerName</th><th class="r">OrderCount</th><th class="r">TotalSpend</th></tr></thead>
+        <tbody>
+          <tr><td class="nv">29825</td><td>Linda Mitchell</td><td class="r nv">28</td><td class="r nv">1,095,747.33</td></tr>
+          <tr><td class="nv">29672</td><td>Jillian Carson</td><td class="r nv">27</td><td class="r nv">1,062,351.08</td></tr>
+          <tr><td class="nv">29734</td><td>Michael Blythe</td><td class="r nv">26</td><td class="r nv">985,214.77</td></tr>
+          <tr><td class="nv">29994</td><td>Jae Pak</td><td class="r nv">25</td><td class="r nv">968,103.52</td></tr>
+          <tr><td class="nv">29551</td><td>Tsvi Reiter</td><td class="r nv">24</td><td class="r nv">912,847.19</td></tr>
+          <tr><td class="nv">29587</td><td>Shu Ito</td><td class="r nv">23</td><td class="r nv">873,691.44</td></tr>
+          <tr><td class="nv">29901</td><td>José Saraiva</td><td class="r nv">22</td><td class="r nv">847,252.61</td></tr>
+          <tr><td class="nv">30072</td><td>David Campbell</td><td class="r nv">21</td><td class="r nv">791,108.85</td></tr>
+          <tr><td class="nv">29485</td><td>Garrett Vargas</td><td class="r nv">20</td><td class="r nv">754,329.07</td></tr>
+          <tr><td class="nv">30117</td><td>Pamela Ansman-Wolfe</td><td class="r nv">19</td><td class="r nv">721,460.92</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="statusbar">
+    <span>Connected</span>
+    <span class="mono">sql-prod-01 / AdventureWorks2022 / app_readonly</span>
+    <span style="margin-left:auto" class="mono">Ln 2 Col 18</span>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>DB Genie — Zen Split</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@300;400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #111113;
+    --surface: #19191c;
+    --elevated: #222226;
+    --border: #2c2c30;
+    --text: #ececef;
+    --text-dim: #87878d;
+    --text-muted: #47474d;
+    --cyan: #22d3ee;
+    --cyan-soft: rgba(34,211,238,0.08);
+    --mono: 'Noto Sans Mono', monospace;
+    --sans: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    width: 1440px;
+    overflow: hidden;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Zen layout: no chrome, connection is a floating overlay.
+     Just editor on left, results on right, schema slides in. */
+  .app {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 40px 1fr 24px;
+    height: 100vh;
+  }
+
+  /* Minimal top bar */
+  .topbar {
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+  }
+
+  .topbar .brand {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: -0.3px;
+  }
+
+  .topbar .brand em {
+    font-style: normal;
+    color: var(--cyan);
+  }
+
+  .topbar .divider {
+    width: 1px;
+    height: 16px;
+    background: var(--border);
+  }
+
+  .conn-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: var(--elevated);
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: background 0.15s;
+    border: 1px solid var(--border);
+  }
+
+  .conn-pill:hover { background: var(--border); }
+
+  .conn-pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--cyan);
+  }
+
+  .top-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .top-btn {
+    padding: 4px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+
+  .top-btn:hover { border-color: var(--text-muted); color: var(--text); }
+  .top-btn.primary { background: var(--cyan); border-color: var(--cyan); color: var(--bg); font-weight: 600; }
+  .top-btn.primary:hover { opacity: 0.9; }
+
+  /* Schema drawer (narrow, overlays left edge) */
+  .schema-drawer {
+    position: fixed;
+    top: 40px;
+    left: 0;
+    bottom: 24px;
+    width: 240px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 8px 0 24px rgba(0,0,0,0.3);
+  }
+
+  .drawer-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .drawer-header h3 {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+  }
+
+  .drawer-close {
+    width: 20px;
+    height: 20px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+  }
+
+  .drawer-close:hover { background: var(--elevated); color: var(--text); }
+
+  /* Connection in drawer */
+  .drawer-conn {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .drawer-conn select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    outline: none;
+    appearance: none;
+  }
+
+  .drawer-meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 8px;
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+  }
+
+  .drawer-meta .dk { color: var(--text-muted); }
+  .drawer-meta .dv { color: var(--text-dim); }
+
+  .drawer-btns {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .drawer-btns button {
+    flex: 1;
+    padding: 5px;
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text-dim);
+    font-family: var(--sans);
+    font-size: 10px;
+    cursor: pointer;
+  }
+
+  .drawer-btns button:hover { border-color: var(--text-muted); color: var(--text); }
+
+  .drawer-tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+  }
+
+  .drawer-tree::-webkit-scrollbar { width: 3px; }
+  .drawer-tree::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+  .dn {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    padding-left: calc(8px + var(--d, 0) * 14px);
+    border-radius: 5px;
+    cursor: pointer;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    transition: background 0.08s;
+  }
+
+  .dn:hover { background: var(--cyan-soft); }
+  .dn.sel { background: var(--cyan-soft); color: var(--cyan); }
+  .dn .a { font-size: 8px; color: var(--text-muted); width: 10px; }
+  .dn.sel .a { color: var(--cyan); }
+  .dn .c { margin-left: auto; font-size: 9px; color: var(--text-muted); }
+
+  /* Left: Editor */
+  .editor-pane {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+    margin-left: 240px; /* offset for drawer */
+  }
+
+  .ai-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .ai-icon {
+    font-size: 12px;
+    color: var(--cyan);
+    flex-shrink: 0;
+  }
+
+  .ai-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .ai-input:focus { border-color: var(--cyan); }
+  .ai-input::placeholder { color: var(--text-muted); }
+
+  .code {
+    flex: 1;
+    overflow: auto;
+    padding: 16px 20px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.75;
+  }
+
+  .code::-webkit-scrollbar { width: 3px; }
+  .code::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+  .cl { white-space: pre; }
+  .cl.cur { background: var(--cyan-soft); margin: 0 -20px; padding: 0 20px; }
+  .ln { display: inline-block; width: 24px; text-align: right; margin-right: 20px; color: var(--text-muted); user-select: none; font-size: 11px; }
+  .kw { color: var(--cyan); }
+  .fn { color: #c084fc; }
+  .str { color: #86efac; }
+  .num { color: #fca5a5; }
+  .cm { color: var(--text-muted); font-style: italic; }
+  .tbl { color: #fde68a; }
+
+  /* Right: Results */
+  .results-pane {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .results-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .results-header .label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+  }
+
+  .results-header .chip {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: var(--elevated);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .results-grid {
+    flex: 1;
+    overflow: auto;
+  }
+
+  .results-grid::-webkit-scrollbar { width: 3px; height: 3px; }
+  .results-grid::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  thead { position: sticky; top: 0; }
+  th {
+    background: var(--surface);
+    padding: 8px 14px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 11px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 6px 14px;
+    border-bottom: 1px solid #1e1e22;
+    color: var(--text-dim);
+  }
+
+  tr:hover td { background: var(--cyan-soft); color: var(--text); }
+  .r { text-align: right; }
+  .nv { color: #fca5a5; }
+
+  /* Status */
+  .statusbar {
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    gap: 16px;
+  }
+
+  .statusbar .accent { color: var(--cyan); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Top bar -->
+  <div class="topbar">
+    <span class="brand">db<em>genie</em></span>
+    <span class="divider"></span>
+    <div class="conn-pill"><span class="dot"></span>sql-prod-01 / AdventureWorks2022</div>
+    <div class="top-actions">
+      <button class="top-btn">Schema ◧</button>
+      <button class="top-btn primary">▶ Run</button>
+      <button class="top-btn">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Schema drawer -->
+  <div class="schema-drawer">
+    <div class="drawer-header">
+      <h3>Schema</h3>
+      <button class="drawer-close">×</button>
+    </div>
+    <div class="drawer-conn">
+      <select>
+        <option>Production — AdventureWorks</option>
+        <option>Staging</option>
+        <option>Local</option>
+      </select>
+      <div class="drawer-meta">
+        <span class="dk">server</span><span class="dv">sql-prod-01</span>
+        <span class="dk">db</span><span class="dv">AdventureWorks2022</span>
+        <span class="dk">user</span><span class="dv">app_readonly</span>
+      </div>
+      <div class="drawer-btns">
+        <button>Disconnect</button>
+        <button>Refresh</button>
+      </div>
+    </div>
+    <div class="drawer-tree">
+      <div class="dn" style="--d:0"><span class="a">▾</span>Sales</div>
+      <div class="dn sel" style="--d:1"><span class="a">▾</span>Customer<span class="c">19,820</span></div>
+      <div class="dn" style="--d:2"><span class="a">·</span>CustomerID<span class="c">int PK</span></div>
+      <div class="dn" style="--d:2"><span class="a">·</span>PersonID<span class="c">int</span></div>
+      <div class="dn" style="--d:2"><span class="a">·</span>StoreID<span class="c">int</span></div>
+      <div class="dn" style="--d:2"><span class="a">·</span>TerritoryID<span class="c">int</span></div>
+      <div class="dn" style="--d:2"><span class="a">·</span>AccountNumber<span class="c">varchar</span></div>
+      <div class="dn" style="--d:2"><span class="a">·</span>ModifiedDate<span class="c">datetime</span></div>
+      <div class="dn" style="--d:1"><span class="a">▸</span>SalesOrderHeader<span class="c">31,465</span></div>
+      <div class="dn" style="--d:1"><span class="a">▸</span>SalesOrderDetail<span class="c">121,317</span></div>
+      <div class="dn" style="--d:1"><span class="a">▸</span>SalesTerritory<span class="c">10</span></div>
+      <div class="dn" style="--d:1"><span class="a">▸</span>Store<span class="c">701</span></div>
+      <div class="dn" style="--d:0"><span class="a">▾</span>Person</div>
+      <div class="dn" style="--d:1"><span class="a">▸</span>Person<span class="c">19,972</span></div>
+      <div class="dn" style="--d:1"><span class="a">▸</span>Address<span class="c">19,614</span></div>
+      <div class="dn" style="--d:0"><span class="a">▸</span>Production</div>
+      <div class="dn" style="--d:0"><span class="a">▸</span>HumanResources</div>
+      <div class="dn" style="--d:0"><span class="a">▸</span>Purchasing</div>
+    </div>
+  </div>
+
+  <!-- Editor -->
+  <div class="editor-pane">
+    <div class="ai-bar">
+      <span class="ai-icon">✦</span>
+      <input class="ai-input" type="text" placeholder="Ask AI… e.g. top customers by revenue last quarter" />
+    </div>
+    <div class="code">
+      <div class="cl"><span class="ln">1</span><span class="cm">-- Top 10 customers by total order value</span></div>
+      <div class="cl cur"><span class="ln">2</span><span class="kw">SELECT TOP</span> <span class="num">10</span></div>
+      <div class="cl"><span class="ln">3</span>    c.CustomerID,</div>
+      <div class="cl"><span class="ln">4</span>    p.FirstName + <span class="str">' '</span> + p.LastName <span class="kw">AS</span> CustomerName,</div>
+      <div class="cl"><span class="ln">5</span>    <span class="fn">COUNT</span>(soh.SalesOrderID) <span class="kw">AS</span> OrderCount,</div>
+      <div class="cl"><span class="ln">6</span>    <span class="fn">SUM</span>(soh.TotalDue) <span class="kw">AS</span> TotalSpend</div>
+      <div class="cl"><span class="ln">7</span><span class="kw">FROM</span> <span class="tbl">Sales.Customer</span> c</div>
+      <div class="cl"><span class="ln">8</span><span class="kw">JOIN</span> <span class="tbl">Person.Person</span> p <span class="kw">ON</span> c.PersonID = p.BusinessEntityID</div>
+      <div class="cl"><span class="ln">9</span><span class="kw">JOIN</span> <span class="tbl">Sales.SalesOrderHeader</span> soh <span class="kw">ON</span> c.CustomerID = soh.CustomerID</div>
+      <div class="cl"><span class="ln">10</span><span class="kw">GROUP BY</span> c.CustomerID, p.FirstName, p.LastName</div>
+      <div class="cl"><span class="ln">11</span><span class="kw">ORDER BY</span> TotalSpend <span class="kw">DESC</span>;</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-pane">
+    <div class="results-header">
+      <span class="label">Results</span>
+      <span class="chip">10 rows</span>
+      <span class="chip">42ms</span>
+    </div>
+    <div class="results-grid">
+      <table>
+        <thead><tr><th>CustomerID</th><th>CustomerName</th><th class="r">OrderCount</th><th class="r">TotalSpend</th></tr></thead>
+        <tbody>
+          <tr><td class="nv">29825</td><td>Linda Mitchell</td><td class="r nv">28</td><td class="r nv">1,095,747.33</td></tr>
+          <tr><td class="nv">29672</td><td>Jillian Carson</td><td class="r nv">27</td><td class="r nv">1,062,351.08</td></tr>
+          <tr><td class="nv">29734</td><td>Michael Blythe</td><td class="r nv">26</td><td class="r nv">985,214.77</td></tr>
+          <tr><td class="nv">29994</td><td>Jae Pak</td><td class="r nv">25</td><td class="r nv">968,103.52</td></tr>
+          <tr><td class="nv">29551</td><td>Tsvi Reiter</td><td class="r nv">24</td><td class="r nv">912,847.19</td></tr>
+          <tr><td class="nv">29587</td><td>Shu Ito</td><td class="r nv">23</td><td class="r nv">873,691.44</td></tr>
+          <tr><td class="nv">29901</td><td>José Saraiva</td><td class="r nv">22</td><td class="r nv">847,252.61</td></tr>
+          <tr><td class="nv">30072</td><td>David Campbell</td><td class="r nv">21</td><td class="r nv">791,108.85</td></tr>
+          <tr><td class="nv">29485</td><td>Garrett Vargas</td><td class="r nv">20</td><td class="r nv">754,329.07</td></tr>
+          <tr><td class="nv">30117</td><td>Pamela Ansman-Wolfe</td><td class="r nv">19</td><td class="r nv">721,460.92</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="statusbar">
+    <span><span class="accent">●</span> sql-prod-01</span>
+    <span>AdventureWorks2022</span>
+    <span style="margin-left:auto">Ln 2, Col 18</span>
+  </div>
+</div>
+</body>
+</html>

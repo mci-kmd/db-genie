@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>DB Genie — Floating Panels</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Commit+Mono&family=General+Sans:wght@400;500;600;700&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0f1014;
+    --card: #16171d;
+    --card-border: #23242d;
+    --card-hover: #1c1d25;
+    --text: #dddde4;
+    --text-dim: #8889a0;
+    --text-muted: #4a4b5c;
+    --mint: #34d399;
+    --mint-soft: rgba(52,211,153,0.08);
+    --indigo: #818cf8;
+    --indigo-soft: rgba(129,140,248,0.08);
+    --rose: #fb7185;
+    --mono: 'Commit Mono', monospace;
+    --sans: 'General Sans', sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    width: 1440px;
+    overflow: hidden;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Ambient glow */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, rgba(129,140,248,0.04) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* Floating panel layout with gaps */
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: 1fr 1fr;
+    height: 100vh;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--card-border);
+    flex-shrink: 0;
+  }
+
+  .panel-head h2 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .panel-head .badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 100px;
+    background: var(--mint-soft);
+    color: var(--mint);
+  }
+
+  /* Sidebar panel (spans 2 rows) */
+  .sidebar-panel {
+    grid-row: 1 / 3;
+  }
+
+  /* Connection area */
+  .conn-block {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--card-border);
+    flex-shrink: 0;
+  }
+
+  .conn-block select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .conn-block select:focus { border-color: var(--mint); }
+
+  .conn-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .conn-cell {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+
+  .conn-cell .k {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+
+  .conn-cell .v {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .conn-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--mint);
+  }
+
+  .conn-status .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--mint);
+    box-shadow: 0 0 10px rgba(52,211,153,0.4);
+    animation: blink 2.5s ease infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .conn-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .btn-float {
+    flex: 1;
+    padding: 7px 0;
+    background: var(--bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-float:hover { border-color: var(--text-muted); color: var(--text); background: var(--card-hover); }
+
+  /* Schema tree */
+  .schema-tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+
+  .schema-tree::-webkit-scrollbar { width: 3px; }
+  .schema-tree::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+  .tn {
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+    padding-left: calc(10px + var(--d, 0) * 14px);
+    border-radius: 8px;
+    cursor: pointer;
+    gap: 8px;
+    transition: background 0.1s;
+  }
+
+  .tn:hover { background: var(--card-hover); }
+  .tn.sel { background: var(--indigo-soft); }
+
+  .tn .arr { font-size: 8px; color: var(--text-muted); width: 10px; }
+  .tn.sel .arr { color: var(--indigo); }
+
+  .tn .name {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .tn.sel .name { color: var(--indigo); font-weight: 500; }
+
+  .tn .info {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  /* Editor panel */
+  .editor-panel .panel-head {
+    gap: 6px;
+  }
+
+  .editor-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+  }
+
+  .run-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 14px;
+    background: var(--mint);
+    border: none;
+    border-radius: 8px;
+    color: var(--bg);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .run-btn:hover { opacity: 0.85; }
+
+  .cancel-btn {
+    padding: 5px 12px;
+    background: transparent;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-family: var(--sans);
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .cancel-btn:hover { border-color: var(--text-muted); }
+
+  /* AI bar */
+  .ai-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--card-border);
+    background: rgba(0,0,0,0.15);
+    flex-shrink: 0;
+  }
+
+  .ai-bar .ai-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--indigo);
+    flex-shrink: 0;
+  }
+
+  .ai-bar input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .ai-bar input:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px var(--indigo-soft); }
+  .ai-bar input::placeholder { color: var(--text-muted); }
+
+  .ai-bar button {
+    padding: 6px 12px;
+    background: var(--indigo-soft);
+    border: 1px solid rgba(129,140,248,0.2);
+    border-radius: 8px;
+    color: var(--indigo);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .ai-bar button:hover { background: rgba(129,140,248,0.15); }
+
+  /* Code */
+  .code {
+    flex: 1;
+    overflow: auto;
+    padding: 14px 18px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.75;
+  }
+
+  .code::-webkit-scrollbar { width: 3px; }
+  .code::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+  .cl { white-space: pre; }
+  .cl.cur { background: var(--mint-soft); margin: 0 -18px; padding: 0 18px; border-radius: 0; }
+  .ln { display: inline-block; width: 22px; text-align: right; margin-right: 18px; color: var(--text-muted); user-select: none; font-size: 11px; }
+  .kw { color: var(--mint); font-weight: 500; }
+  .fn { color: var(--indigo); }
+  .str { color: #fbbf24; }
+  .num { color: var(--rose); }
+  .cm { color: var(--text-muted); font-style: italic; }
+  .tbl { color: #c084fc; }
+
+  /* Results panel */
+  .results-panel .panel-head .meta {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+
+  .meta-chip {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+
+  .grid {
+    flex: 1;
+    overflow: auto;
+  }
+
+  .grid::-webkit-scrollbar { width: 3px; height: 3px; }
+  .grid::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  thead { position: sticky; top: 0; }
+  th {
+    background: var(--card);
+    padding: 8px 14px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 11px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  td {
+    padding: 6px 14px;
+    border-bottom: 1px solid #1c1d24;
+    color: var(--text-dim);
+  }
+
+  tr:hover td { background: var(--indigo-soft); color: var(--text); }
+  .r { text-align: right; }
+  .nv { color: var(--rose); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <div class="panel sidebar-panel">
+    <div class="panel-head">
+      <h2>DB Genie</h2>
+    </div>
+
+    <div class="conn-block">
+      <select>
+        <option>Production — AdventureWorks</option>
+        <option>Staging — AW_Staging</option>
+        <option>Local — localhost</option>
+      </select>
+      <div class="conn-details">
+        <div class="conn-cell"><div class="k">Server</div><div class="v">sql-prod-01</div></div>
+        <div class="conn-cell"><div class="k">Port</div><div class="v">1433</div></div>
+        <div class="conn-cell"><div class="k">Database</div><div class="v">AdventureWorks</div></div>
+        <div class="conn-cell"><div class="k">User</div><div class="v">app_readonly</div></div>
+      </div>
+      <div class="conn-status"><span class="dot"></span> Connected</div>
+      <div class="conn-actions">
+        <button class="btn-float">Disconnect</button>
+        <button class="btn-float">Refresh</button>
+      </div>
+    </div>
+
+    <div class="schema-tree">
+      <div class="tn" style="--d:0"><span class="arr">▾</span><span class="name">Sales</span></div>
+      <div class="tn sel" style="--d:1"><span class="arr">▾</span><span class="name">Customer</span><span class="info">19,820</span></div>
+      <div class="tn" style="--d:2"><span class="arr">·</span><span class="name">CustomerID</span><span class="info">int PK</span></div>
+      <div class="tn" style="--d:2"><span class="arr">·</span><span class="name">PersonID</span><span class="info">int</span></div>
+      <div class="tn" style="--d:2"><span class="arr">·</span><span class="name">StoreID</span><span class="info">int</span></div>
+      <div class="tn" style="--d:2"><span class="arr">·</span><span class="name">TerritoryID</span><span class="info">int</span></div>
+      <div class="tn" style="--d:2"><span class="arr">·</span><span class="name">AccountNumber</span><span class="info">varchar</span></div>
+      <div class="tn" style="--d:2"><span class="arr">·</span><span class="name">ModifiedDate</span><span class="info">datetime</span></div>
+      <div class="tn" style="--d:1"><span class="arr">▸</span><span class="name">SalesOrderHeader</span><span class="info">31,465</span></div>
+      <div class="tn" style="--d:1"><span class="arr">▸</span><span class="name">SalesOrderDetail</span><span class="info">121,317</span></div>
+      <div class="tn" style="--d:1"><span class="arr">▸</span><span class="name">SalesTerritory</span><span class="info">10</span></div>
+      <div class="tn" style="--d:1"><span class="arr">▸</span><span class="name">Store</span><span class="info">701</span></div>
+      <div class="tn" style="--d:0"><span class="arr">▾</span><span class="name">Person</span></div>
+      <div class="tn" style="--d:1"><span class="arr">▸</span><span class="name">Person</span><span class="info">19,972</span></div>
+      <div class="tn" style="--d:1"><span class="arr">▸</span><span class="name">Address</span><span class="info">19,614</span></div>
+      <div class="tn" style="--d:0"><span class="arr">▸</span><span class="name">Production</span></div>
+      <div class="tn" style="--d:0"><span class="arr">▸</span><span class="name">HumanResources</span></div>
+      <div class="tn" style="--d:0"><span class="arr">▸</span><span class="name">Purchasing</span></div>
+    </div>
+  </div>
+
+  <!-- Editor -->
+  <div class="panel editor-panel">
+    <div class="panel-head">
+      <h2>Query</h2>
+      <div class="editor-actions">
+        <button class="run-btn">▶ Run</button>
+        <button class="cancel-btn">Cancel</button>
+      </div>
+    </div>
+    <div class="ai-bar">
+      <span class="ai-label">AI</span>
+      <input type="text" placeholder="Describe what you need..." />
+      <button>Generate</button>
+    </div>
+    <div class="code">
+      <div class="cl"><span class="ln">1</span><span class="cm">-- Top 10 customers by total order value</span></div>
+      <div class="cl cur"><span class="ln">2</span><span class="kw">SELECT TOP</span> <span class="num">10</span></div>
+      <div class="cl"><span class="ln">3</span>    c.CustomerID,</div>
+      <div class="cl"><span class="ln">4</span>    p.FirstName + <span class="str">' '</span> + p.LastName <span class="kw">AS</span> CustomerName,</div>
+      <div class="cl"><span class="ln">5</span>    <span class="fn">COUNT</span>(soh.SalesOrderID) <span class="kw">AS</span> OrderCount,</div>
+      <div class="cl"><span class="ln">6</span>    <span class="fn">SUM</span>(soh.TotalDue) <span class="kw">AS</span> TotalSpend</div>
+      <div class="cl"><span class="ln">7</span><span class="kw">FROM</span> <span class="tbl">Sales.Customer</span> c</div>
+      <div class="cl"><span class="ln">8</span><span class="kw">JOIN</span> <span class="tbl">Person.Person</span> p <span class="kw">ON</span> c.PersonID = p.BusinessEntityID</div>
+      <div class="cl"><span class="ln">9</span><span class="kw">JOIN</span> <span class="tbl">Sales.SalesOrderHeader</span> soh <span class="kw">ON</span> c.CustomerID = soh.CustomerID</div>
+      <div class="cl"><span class="ln">10</span><span class="kw">GROUP BY</span> c.CustomerID, p.FirstName, p.LastName</div>
+      <div class="cl"><span class="ln">11</span><span class="kw">ORDER BY</span> TotalSpend <span class="kw">DESC</span>;</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="panel results-panel">
+    <div class="panel-head">
+      <h2>Results</h2>
+      <div class="meta">
+        <span class="meta-chip">10 rows</span>
+        <span class="meta-chip">42ms</span>
+      </div>
+    </div>
+    <div class="grid">
+      <table>
+        <thead><tr><th>CustomerID</th><th>CustomerName</th><th class="r">OrderCount</th><th class="r">TotalSpend</th></tr></thead>
+        <tbody>
+          <tr><td class="nv">29825</td><td>Linda Mitchell</td><td class="r nv">28</td><td class="r nv">1,095,747.33</td></tr>
+          <tr><td class="nv">29672</td><td>Jillian Carson</td><td class="r nv">27</td><td class="r nv">1,062,351.08</td></tr>
+          <tr><td class="nv">29734</td><td>Michael Blythe</td><td class="r nv">26</td><td class="r nv">985,214.77</td></tr>
+          <tr><td class="nv">29994</td><td>Jae Pak</td><td class="r nv">25</td><td class="r nv">968,103.52</td></tr>
+          <tr><td class="nv">29551</td><td>Tsvi Reiter</td><td class="r nv">24</td><td class="r nv">912,847.19</td></tr>
+          <tr><td class="nv">29587</td><td>Shu Ito</td><td class="r nv">23</td><td class="r nv">873,691.44</td></tr>
+          <tr><td class="nv">29901</td><td>José Saraiva</td><td class="r nv">22</td><td class="r nv">847,252.61</td></tr>
+          <tr><td class="nv">30072</td><td>David Campbell</td><td class="r nv">21</td><td class="r nv">791,108.85</td></tr>
+          <tr><td class="nv">29485</td><td>Garrett Vargas</td><td class="r nv">20</td><td class="r nv">754,329.07</td></tr>
+          <tr><td class="nv">30117</td><td>Pamela Ansman-Wolfe</td><td class="r nv">19</td><td class="r nv">721,460.92</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>
