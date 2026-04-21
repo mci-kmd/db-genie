@@ -5,29 +5,26 @@ import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
 import PlaylistAddRoundedIcon from '@mui/icons-material/PlaylistAddRounded'
 import StopRoundedIcon from '@mui/icons-material/StopRounded'
 import {
-  Alert,
   Box,
   Button,
-  Card,
-  CardContent,
+  IconButton,
+  InputBase,
   MenuItem,
-  Stack,
-  TextField,
-  Typography,
+  Select,
+  Tooltip,
 } from '@mui/material'
 import Editor, { type Monaco } from '@monaco-editor/react'
 import type { editor, Position } from 'monaco-editor'
 
 import type {
-  ActiveConnection,
   CopilotModel,
   CopilotSqlResult,
   DatabaseSchema,
   SchemaObjectDetail,
 } from '../shared/contracts'
+import { fonts, gradients, palette } from '../theme'
 
 interface SqlWorkspaceProps {
-  activeConnection: ActiveConnection | null
   sqlText: string
   copilotPrompt: string
   copilotModels: CopilotModel[]
@@ -86,7 +83,6 @@ const JSON_SNIPPETS = [
 ]
 
 export function SqlWorkspace({
-  activeConnection,
   sqlText,
   copilotPrompt,
   copilotModels,
@@ -145,130 +141,222 @@ export function SqlWorkspace({
       base: 'vs-dark',
       inherit: true,
       rules: [
-        { token: 'keyword', foreground: '9aa5ff' },
-        { token: 'string', foreground: '86efac' },
+        { token: 'keyword', foreground: 'f472b6' },
+        { token: 'string', foreground: '5eead4' },
+        { token: 'number', foreground: 'fca89d' },
+        { token: 'comment', foreground: '4a4562', fontStyle: 'italic' },
+        { token: 'operator', foreground: 'a78bfa' },
       ],
       colors: {
-        'editor.background': '#081120',
-        'editor.lineHighlightBackground': '#121a2d',
-        'editorCursor.foreground': '#7c8cff',
-        'editor.selectionBackground': '#2c3a67',
+        'editor.background': palette.bg,
+        'editor.foreground': palette.text,
+        'editor.lineHighlightBackground': '#1a1726',
+        'editorLineNumber.foreground': palette.textMuted,
+        'editorCursor.foreground': palette.purple,
+        'editor.selectionBackground': '#3a2f5a',
+        'editorWidget.background': palette.surfaceRaised,
+        'editorWidget.border': palette.border,
       },
     })
     setMonaco(nextMonaco)
   }
 
   return (
-    <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
-        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box>
-            <Typography variant="h6">SQL workspace</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Monaco editor, schema-aware completion, and Copilot drafting.
-            </Typography>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          padding: '10px 16px',
+          borderBottom: `1px solid ${palette.border}`,
+          background: palette.surface,
+          flexShrink: 0,
+        }}
+      >
+        <Button
+          variant="contained"
+          onClick={onRunQuery}
+          disabled={!canRun || runningQuery}
+          startIcon={<PlayArrowRoundedIcon sx={{ fontSize: 16 }} />}
+          sx={{ px: 2.25, py: 0.875 }}
+        >
+          Run
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={onCancel}
+          disabled={!runningQuery}
+          startIcon={<StopRoundedIcon sx={{ fontSize: 16 }} />}
+          sx={{ py: 0.875 }}
+        >
+          Cancel
+        </Button>
+        <Tooltip title={selectedObject ? 'Insert SELECT for selected table' : 'Select a table first'}>
+          <span>
+            <IconButton
+              onClick={onInsertTemplate}
+              disabled={!selectedObject}
+              size="small"
+              sx={{
+                borderRadius: '8px',
+                border: `1px solid ${palette.border}`,
+                background: palette.surfaceRaised,
+                color: palette.textDim,
+                width: 32,
+                height: 32,
+                '&:hover': { color: palette.text, borderColor: palette.textMuted },
+              }}
+            >
+              <PlaylistAddRoundedIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </span>
+        </Tooltip>
+
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1, ml: 1.5 }}>
+          <Box
+            sx={{
+              fontSize: 10,
+              fontWeight: 700,
+              padding: '3px 8px',
+              background: gradients.aiBadge,
+              border: `1px solid ${palette.purple}33`,
+              borderRadius: '6px',
+              color: palette.purple,
+              flexShrink: 0,
+            }}
+          >
+            AI
           </Box>
-          {activeConnection ? (
-            <Typography variant="body2" color="text.secondary">
-              {activeConnection.server} / {activeConnection.database}
-            </Typography>
-          ) : null}
-        </Stack>
-
-        <Stack direction="row" spacing={1}>
-          <Button
-            variant="contained"
-            startIcon={<PlayArrowRoundedIcon />}
-            onClick={onRunQuery}
-            disabled={!canRun || runningQuery}
-          >
-            Run query
-          </Button>
-          <Button variant="outlined" startIcon={<StopRoundedIcon />} onClick={onCancel} disabled={!runningQuery}>
-            Cancel
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<PlaylistAddRoundedIcon />}
-            onClick={onInsertTemplate}
-            disabled={!selectedObject}
-          >
-            Insert SELECT
-          </Button>
-        </Stack>
-
-        <Stack direction="row" spacing={1.5}>
-          <TextField
+          <InputBase
             fullWidth
-            label="Ask Copilot for SQL"
-            size="small"
             value={copilotPrompt}
             onChange={(event) => onChangeCopilotPrompt(event.target.value)}
-            placeholder="e.g. Find customers with failed payments in the last 30 days"
-          />
-          <TextField
-            select
-            label="Model"
-            size="small"
-            value={selectedCopilotModel ?? ''}
-            onChange={(event) => onChangeCopilotModel(event.target.value)}
-            disabled={copilotModelBusy || copilotModels.length === 0}
-            sx={{ minWidth: 260 }}
-          >
-            {copilotModels.length === 0 ? (
-              <MenuItem value="" disabled>
-                {copilotModelBusy ? 'Loading models...' : 'No models available'}
-              </MenuItem>
-            ) : (
-              copilotModels.map((model) => (
-                <MenuItem key={model.id} value={model.id}>
-                  {formatModelLabel(model)}
-                </MenuItem>
-              ))
-            )}
-          </TextField>
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<AutoAwesomeRoundedIcon />}
-            onClick={onGenerateSql}
-            disabled={
-              !canRun || generatingSql || copilotModelBusy || !selectedCopilotModel || !copilotPrompt.trim()
-            }
-          >
-            Generate
-          </Button>
-        </Stack>
-
-        {copilotResult?.rationale ? (
-          <Alert severity="info" sx={{ borderRadius: 2 }}>
-            {copilotResult.rationale}
-          </Alert>
-        ) : null}
-
-        <Box sx={{ flex: 1, minHeight: 0, borderRadius: 3, overflow: 'hidden' }}>
-          <Editor
-            height="100%"
-            defaultLanguage="sql"
-            value={sqlText}
-            theme="db-genie"
-            onChange={(value) => onChangeSql(value ?? '')}
-            onMount={handleEditorMount}
-            options={{
-              automaticLayout: true,
-              fontSize: 14,
-              fontLigatures: true,
-              minimap: { enabled: false },
-              quickSuggestions: true,
-              padding: { top: 18 },
-              suggest: {
-                showWords: false,
+            placeholder="Ask Copilot to write SQL…"
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && canRun && !generatingSql && copilotPrompt.trim()) {
+                event.preventDefault()
+                onGenerateSql()
+              }
+            }}
+            sx={{
+              flex: 1,
+              background: palette.bg,
+              border: `1px solid ${palette.border}`,
+              color: palette.text,
+              padding: '5px 12px',
+              borderRadius: '8px',
+              fontFamily: fonts.sans,
+              fontSize: 12,
+              transition: 'all 0.2s',
+              '&:focus-within': {
+                borderColor: palette.purple,
+                boxShadow: `0 0 0 3px ${palette.purple}1a`,
+              },
+              '& input::placeholder': {
+                color: palette.textMuted,
+                opacity: 1,
               },
             }}
           />
+          <Select
+            value={selectedCopilotModel ?? ''}
+            onChange={(event) => onChangeCopilotModel(String(event.target.value))}
+            disabled={copilotModelBusy || copilotModels.length === 0}
+            size="small"
+            displayEmpty
+            sx={{
+              minWidth: 180,
+              height: 30,
+              fontSize: 11,
+              fontFamily: fonts.mono,
+              background: palette.bg,
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: palette.border },
+            }}
+            renderValue={(value) => {
+              if (!value) {
+                return (
+                  <Box sx={{ color: palette.textMuted }}>
+                    {copilotModelBusy ? 'Loading…' : 'No model'}
+                  </Box>
+                )
+              }
+              const model = copilotModels.find((candidate) => candidate.id === value)
+              return model ? formatModelLabel(model) : String(value)
+            }}
+          >
+            {copilotModels.map((model) => (
+              <MenuItem key={model.id} value={model.id} sx={{ fontFamily: fonts.mono, fontSize: 11 }}>
+                {formatModelLabel(model)}
+              </MenuItem>
+            ))}
+          </Select>
+          <Button
+            variant="contained"
+            startIcon={<AutoAwesomeRoundedIcon sx={{ fontSize: 14 }} />}
+            onClick={onGenerateSql}
+            disabled={
+              !canRun ||
+              generatingSql ||
+              copilotModelBusy ||
+              !selectedCopilotModel ||
+              !copilotPrompt.trim()
+            }
+            sx={{ py: 0.875, flexShrink: 0 }}
+          >
+            Generate
+          </Button>
         </Box>
-      </CardContent>
-    </Card>
+      </Box>
+
+      {copilotResult?.rationale ? (
+        <Box
+          sx={{
+            padding: '8px 16px',
+            borderBottom: `1px solid ${palette.border}`,
+            background: `${palette.purple}0d`,
+            color: palette.textDim,
+            fontSize: 11,
+            fontFamily: fonts.mono,
+            flexShrink: 0,
+          }}
+        >
+          <Box component="span" sx={{ color: palette.purple, fontWeight: 600, mr: 1 }}>
+            Copilot:
+          </Box>
+          {copilotResult.rationale}
+        </Box>
+      ) : null}
+
+      <Box sx={{ flex: 1, minHeight: 0, background: palette.bg }}>
+        <Editor
+          height="100%"
+          defaultLanguage="sql"
+          value={sqlText}
+          theme="db-genie"
+          onChange={(value) => onChangeSql(value ?? '')}
+          onMount={handleEditorMount}
+          options={{
+            automaticLayout: true,
+            fontSize: 13,
+            fontFamily: fonts.mono,
+            fontLigatures: true,
+            minimap: { enabled: false },
+            quickSuggestions: true,
+            padding: { top: 14 },
+            lineNumbers: 'on',
+            renderLineHighlight: 'all',
+            scrollbar: {
+              verticalScrollbarSize: 4,
+              horizontalScrollbarSize: 4,
+            },
+            suggest: {
+              showWords: false,
+            },
+          }}
+        />
+      </Box>
+    </Box>
   )
 }
 
@@ -356,5 +444,5 @@ function buildCompletionPayload(
 }
 
 function formatModelLabel(model: CopilotModel): string {
-  return model.name === model.id ? model.name : `${model.name} (${model.id})`
+  return model.name === model.id ? model.name : `${model.name}`
 }

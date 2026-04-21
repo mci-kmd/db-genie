@@ -1,205 +1,288 @@
-import DataObjectRoundedIcon from '@mui/icons-material/DataObjectRounded'
-import StorageRoundedIcon from '@mui/icons-material/StorageRounded'
-import TableChartRoundedIcon from '@mui/icons-material/TableChartRounded'
-import ViewSidebarRoundedIcon from '@mui/icons-material/ViewSidebarRounded'
-import {
-  Box,
-  Card,
-  CardContent,
-  Chip,
-  Stack,
-  Typography,
-  alpha,
-} from '@mui/material'
-import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView'
-import { TreeItem } from '@mui/x-tree-view/TreeItem'
-import type { ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 
-import type { DatabaseSchema, SchemaObjectRef } from '../shared/contracts'
+import { Box } from '@mui/material'
+
+import type {
+  DatabaseSchema,
+  SchemaObjectMetadata,
+  SchemaObjectRef,
+} from '../shared/contracts'
+import { fonts, palette } from '../theme'
+import { EmptyHint, SectionLabel } from './ui/primitives'
 
 interface SchemaExplorerProps {
   schema: DatabaseSchema | null
   selectedObject: SchemaObjectRef | null
-  onSelect: (objectRef: SchemaObjectRef) => void
+  onSelect: (ref: SchemaObjectRef) => void
 }
 
-export function SchemaExplorer({ schema, selectedObject, onSelect }: SchemaExplorerProps) {
-  const selectedId = selectedObject ? makeObjectId(selectedObject) : null
+type TreeNode =
+  | { kind: 'database'; id: string; label: string; depth: number; parentId: null }
+  | {
+      kind: 'schema'
+      id: string
+      label: string
+      depth: number
+      parentId: string
+    }
+  | {
+      kind: 'object'
+      id: string
+      label: string
+      depth: number
+      parentId: string
+      ref: SchemaObjectRef
+      rowCount: number | null
+    }
+  | {
+      kind: 'column'
+      id: string
+      label: string
+      depth: number
+      parentId: string
+      dataType: string
+      isPrimaryKey: boolean
+    }
+
+export function SchemaExplorer({
+  schema,
+  selectedObject,
+  onSelect,
+}: SchemaExplorerProps) {
+  const [manualExpanded, setManualExpanded] = useState<Set<string>>(
+    () => new Set(),
+  )
+
+  const nodes = useMemo<TreeNode[] | null>(
+    () => (schema ? buildNodes(schema) : null),
+    [schema],
+  )
+
+  const selectedId = selectedObject ? objectId(selectedObject) : null
+
+  // Auto-expand database, the selected schema group, and the selected object
+  const expanded = useMemo(() => {
+    const next = new Set(manualExpanded)
+    if (schema) {
+      next.add(`database:${schema.database}`)
+    }
+    if (selectedObject) {
+      next.add(`schema:${selectedObject.schema}`)
+      next.add(objectId(selectedObject))
+    }
+    return next
+  }, [manualExpanded, schema, selectedObject])
+
+  function toggle(id: string): void {
+    setManualExpanded((current) => {
+      const next = new Set(current)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  function isVisible(node: TreeNode): boolean {
+    let parentId = node.parentId
+    while (parentId !== null) {
+      if (!expanded.has(parentId)) return false
+      parentId = nodes?.find((candidate) => candidate.id === parentId)?.parentId ?? null
+    }
+    return true
+  }
 
   return (
-    <Card sx={{ minHeight: 0, flex: 1 }}>
-      <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <Stack
-          direction="row"
-          sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}
-        >
-          <Box>
-            <Typography variant="h6">Schema explorer</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Tables, views, columns, and JSON candidates.
-            </Typography>
-          </Box>
-          {schema ? <Chip label={schema.database} size="small" /> : null}
-        </Stack>
+    <Box
+      sx={{
+        flex: 1,
+        minHeight: 0,
+        overflowY: 'auto',
+        padding: '12px 8px',
+      }}
+    >
+      <SectionLabel sx={{ px: 1, mb: 1 }}>Schema</SectionLabel>
 
-        {!schema ? (
-          <EmptyState label="Connect to SQL Server to load schema details." />
-        ) : (
-          <Box
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              overflow: 'auto',
-              pr: 0.5,
-              '& .MuiTreeItem-content': {
-                borderRadius: 2,
-                py: 0.25,
-              },
-              '& .MuiTreeItem-content.Mui-selected': {
-                backgroundColor: alpha('#7c8cff', 0.16),
-              },
-            }}
-          >
-            <SimpleTreeView
-              selectedItems={selectedId}
-              onSelectedItemsChange={(_event, itemId) => {
-                if (typeof itemId !== 'string') {
-                  return
-                }
-                const nextObject = findObjectByItemId(schema, itemId)
-                if (nextObject) {
-                  onSelect(nextObject)
+      {!schema ? (
+        <EmptyHint>Connect to SQL Server to load schema.</EmptyHint>
+      ) : !nodes?.length ? (
+        <EmptyHint>No objects found.</EmptyHint>
+      ) : (
+        nodes
+          .filter(isVisible)
+          .map((node) => (
+            <SchemaRow
+              key={node.id}
+              node={node}
+              expanded={expanded.has(node.id)}
+              active={node.kind === 'object' && node.id === selectedId}
+              onToggle={() => toggle(node.id)}
+              onClick={() => {
+                if (node.kind === 'schema' || node.kind === 'database') {
+                  toggle(node.id)
+                } else if (node.kind === 'object') {
+                  toggle(node.id)
+                  onSelect(node.ref)
                 }
               }}
-            >
-              <TreeItem
-                itemId={`database:${schema.database}`}
-                label={<TreeLabel icon={<StorageRoundedIcon fontSize="small" />} label={schema.database} />}
-              >
-                {schema.schemas.map((schemaGroup) => (
-                  <TreeItem
-                    key={schemaGroup.schema}
-                    itemId={`schema:${schemaGroup.schema}`}
-                    label={<TreeLabel icon={<ViewSidebarRoundedIcon fontSize="small" />} label={schemaGroup.schema} />}
-                  >
-                    {schemaGroup.objects.map((objectMetadata) => (
-                      <TreeItem
-                        key={makeObjectId(objectMetadata)}
-                        itemId={makeObjectId(objectMetadata)}
-                        label={
-                          <TreeLabel
-                            icon={
-                              objectMetadata.type === 'table' ? (
-                                <TableChartRoundedIcon fontSize="small" />
-                              ) : (
-                                <DataObjectRoundedIcon fontSize="small" />
-                              )
-                            }
-                            label={objectMetadata.name}
-                            trailing={
-                              objectMetadata.rowCount !== null ? (
-                                <Typography variant="caption" color="text.secondary">
-                                  {objectMetadata.rowCount.toLocaleString()}
-                                </Typography>
-                              ) : undefined
-                            }
-                          />
-                        }
-                      >
-                        {objectMetadata.columns.map((column) => (
-                          <TreeItem
-                            key={`${makeObjectId(objectMetadata)}:${column.name}`}
-                            itemId={`${makeObjectId(objectMetadata)}:${column.name}`}
-                            label={
-                              <TreeLabel
-                                icon={<DataObjectRoundedIcon fontSize="small" />}
-                                label={`${column.name} · ${column.dataType}`}
-                                trailing={
-                                  column.isJsonCandidate ? (
-                                    <Chip
-                                      label="JSON?"
-                                      size="small"
-                                      sx={{ height: 20, fontSize: 11 }}
-                                    />
-                                  ) : undefined
-                                }
-                              />
-                            }
-                          />
-                        ))}
-                      </TreeItem>
-                    ))}
-                  </TreeItem>
-                ))}
-              </TreeItem>
-            </SimpleTreeView>
-          </Box>
-        )}
-      </CardContent>
-    </Card>
+            />
+          ))
+      )}
+    </Box>
   )
 }
 
-function findObjectByItemId(schema: DatabaseSchema, itemId: string): SchemaObjectRef | null {
-  for (const schemaGroup of schema.schemas) {
-    for (const objectMetadata of schemaGroup.objects) {
-      if (makeObjectId(objectMetadata) === itemId) {
-        return {
-          schema: objectMetadata.schema,
-          name: objectMetadata.name,
-          type: objectMetadata.type,
-        }
+function SchemaRow({
+  node,
+  expanded,
+  active,
+  onToggle,
+  onClick,
+}: {
+  node: TreeNode
+  expanded: boolean
+  active: boolean
+  onToggle: () => void
+  onClick: () => void
+}) {
+  const arrow = getArrow(node, expanded)
+
+  return (
+    <Box
+      onClick={onClick}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        padding: '5px 10px',
+        paddingLeft: `${10 + node.depth * 16}px`,
+        borderRadius: '8px',
+        cursor: 'pointer',
+        gap: 1,
+        transition: 'background 0.12s',
+        background: active ? 'rgba(167,139,250,0.1)' : 'transparent',
+        '&:hover': {
+          background: active ? 'rgba(167,139,250,0.14)' : 'rgba(167,139,250,0.06)',
+        },
+      }}
+    >
+      <Box
+        component="span"
+        onClick={(event) => {
+          event.stopPropagation()
+          if (node.kind !== 'column') onToggle()
+        }}
+        sx={{
+          fontSize: 9,
+          color: active ? palette.purple : palette.textMuted,
+          width: 12,
+          display: 'inline-flex',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        {arrow}
+      </Box>
+      <Box
+        sx={{
+          fontFamily: fonts.mono,
+          fontSize: 12,
+          color: active ? palette.purple : palette.textDim,
+          fontWeight: active ? 500 : 400,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          flex: 1,
+          minWidth: 0,
+        }}
+      >
+        {node.label}
+      </Box>
+      {node.kind === 'object' && node.rowCount !== null ? (
+        <Box
+          sx={{
+            fontFamily: fonts.mono,
+            fontSize: 10,
+            color: palette.textMuted,
+            background: palette.bg,
+            padding: '1px 6px',
+            borderRadius: '4px',
+            flexShrink: 0,
+          }}
+        >
+          {node.rowCount.toLocaleString()}
+        </Box>
+      ) : null}
+      {node.kind === 'column' ? (
+        <Box
+          sx={{
+            fontFamily: fonts.mono,
+            fontSize: 9,
+            color: palette.textMuted,
+            flexShrink: 0,
+          }}
+        >
+          {node.dataType}
+          {node.isPrimaryKey ? ' PK' : ''}
+        </Box>
+      ) : null}
+    </Box>
+  )
+}
+
+function getArrow(node: TreeNode, expanded: boolean): string {
+  if (node.kind === 'column') return '·'
+  if (node.kind === 'object') return '◫'
+  return expanded ? '▾' : '▸'
+}
+
+function buildNodes(schema: DatabaseSchema): TreeNode[] {
+  const nodes: TreeNode[] = []
+  const databaseId = `database:${schema.database}`
+  nodes.push({
+    kind: 'database',
+    id: databaseId,
+    label: schema.database,
+    depth: 0,
+    parentId: null,
+  })
+  for (const group of schema.schemas) {
+    const schemaNodeId = `schema:${group.schema}`
+    nodes.push({
+      kind: 'schema',
+      id: schemaNodeId,
+      label: group.schema,
+      depth: 1,
+      parentId: databaseId,
+    })
+    for (const object of group.objects) {
+      const oid = objectId(object)
+      nodes.push({
+        kind: 'object',
+        id: oid,
+        label: object.name,
+        depth: 2,
+        parentId: schemaNodeId,
+        ref: { schema: object.schema, name: object.name, type: object.type },
+        rowCount: object.rowCount,
+      })
+      for (const column of object.columns) {
+        nodes.push({
+          kind: 'column',
+          id: `${oid}:col:${column.name}`,
+          label: column.name,
+          depth: 3,
+          parentId: oid,
+          dataType: column.dataType,
+          isPrimaryKey: column.isPrimaryKey,
+        })
       }
     }
   }
-
-  return null
+  return nodes
 }
 
-function makeObjectId(objectRef: SchemaObjectRef): string {
-  return `object:${objectRef.type}:${objectRef.schema}.${objectRef.name}`
-}
-
-function TreeLabel({
-  icon,
-  label,
-  trailing,
-}: {
-  icon: ReactNode
-  label: string
-  trailing?: ReactNode
-}) {
-  return (
-    <Stack
-      direction="row"
-      spacing={1}
-      sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-    >
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-        {icon}
-        <Typography variant="body2">{label}</Typography>
-      </Stack>
-      {trailing}
-    </Stack>
-  )
-}
-
-function EmptyState({ label }: { label: string }) {
-  return (
-    <Stack
-      sx={{
-        flex: 1,
-        border: '1px dashed',
-        borderColor: 'divider',
-        borderRadius: 3,
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 3,
-      }}
-    >
-      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-        {label}
-      </Typography>
-    </Stack>
-  )
+function objectId(ref: SchemaObjectRef | SchemaObjectMetadata): string {
+  return `object:${ref.schema}.${ref.name}`
 }

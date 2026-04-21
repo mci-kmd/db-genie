@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Fira+Code:wght@300;400;500&display=swap');
+
 html,
 body,
 #root {
@@ -13,24 +15,76 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background:
-    radial-gradient(circle at top, rgba(101, 108, 255, 0.18), transparent 28%),
-    linear-gradient(180deg, #080c18 0%, #05070d 100%);
+  background: #13111c;
+  color: #e2dff0;
+  font-size: 13px;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: -100px;
+  right: -100px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -200px;
+  left: 200px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(96, 165, 250, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
 }
 
 * {
   box-sizing: border-box;
 }
 
-.panel-resize-handle {
+/* Panel resize handles */
+.panel-resize-handle-h {
   position: relative;
-  flex: 0 0 8px;
+  flex: 0 0 1px;
+  background: #2a2640;
+  cursor: col-resize;
+  transition: background 0.15s;
+}
+.panel-resize-handle-h:hover,
+.panel-resize-handle-h[data-resize-handle-active] {
+  background: #a78bfa;
+}
+.panel-resize-handle-v {
+  position: relative;
+  flex: 0 0 1px;
+  background: #2a2640;
+  cursor: row-resize;
+  transition: background 0.15s;
+}
+.panel-resize-handle-v:hover,
+.panel-resize-handle-v[data-resize-handle-active] {
+  background: #a78bfa;
 }
 
-.panel-resize-handle::after {
-  content: '';
-  position: absolute;
-  inset: 2px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #4a4562;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }
