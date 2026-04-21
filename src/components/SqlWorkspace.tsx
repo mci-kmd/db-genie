@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded'
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
@@ -103,11 +103,25 @@ export function SqlWorkspace({
   onInsertTemplate,
 }: SqlWorkspaceProps) {
   const [monaco, setMonaco] = useState<Monaco | null>(null)
+  const [sqlEditor, setSqlEditor] = useState<editor.IStandaloneCodeEditor | null>(null)
+  const runQueryHotkeyState = useRef({
+    canRun,
+    onRunQuery,
+    runningQuery,
+  })
 
   const completionPayload = useMemo(
     () => buildCompletionPayload(schema, selectedObject),
     [schema, selectedObject],
   )
+
+  useEffect(() => {
+    runQueryHotkeyState.current = {
+      canRun,
+      onRunQuery,
+      runningQuery,
+    }
+  }, [canRun, onRunQuery, runningQuery])
 
   useEffect(() => {
     if (!monaco) {
@@ -135,6 +149,30 @@ export function SqlWorkspace({
 
     return () => disposable.dispose()
   }, [completionPayload, monaco])
+
+  useEffect(() => {
+    if (!monaco || !sqlEditor) {
+      return
+    }
+
+    const disposable = sqlEditor.addAction({
+      id: 'db-genie.run-query',
+      label: 'Run query',
+      keybindings: [monaco.KeyCode.F5],
+      run: () => {
+        const { canRun: canRunQuery, onRunQuery: runQuery, runningQuery: queryRunning } =
+          runQueryHotkeyState.current
+
+        if (!canRunQuery || queryRunning) {
+          return
+        }
+
+        runQuery()
+      },
+    })
+
+    return () => disposable.dispose()
+  }, [monaco, sqlEditor])
 
   function handleBeforeMount(nextMonaco: Monaco): void {
     nextMonaco.editor.defineTheme('db-genie', {
@@ -178,7 +216,8 @@ export function SqlWorkspace({
     })
   }
 
-  function handleEditorMount(_editor: editor.IStandaloneCodeEditor, nextMonaco: Monaco): void {
+  function handleEditorMount(nextEditor: editor.IStandaloneCodeEditor, nextMonaco: Monaco): void {
+    setSqlEditor(nextEditor)
     setMonaco(nextMonaco)
   }
 
@@ -199,6 +238,7 @@ export function SqlWorkspace({
           variant="contained"
           onClick={onRunQuery}
           disabled={!canRun || runningQuery}
+          title="Run query (F5)"
           startIcon={<PlayArrowRoundedIcon sx={{ fontSize: 16 }} />}
           sx={{ px: 2.25, py: 0.875 }}
         >
