@@ -14,7 +14,7 @@ const __dirname = dirname(__filename)
 
 const connectionStore = new ConnectionStore()
 const settingsStore = new SettingsStore()
-const databaseService = new DatabaseService(connectionStore)
+const databaseService = new DatabaseService(connectionStore, settingsStore)
 const copilotService = new CopilotService(databaseService, settingsStore)
 
 async function createWindow(): Promise<void> {
@@ -75,6 +75,7 @@ function registerIpcHandlers(): void {
 
 app.whenReady().then(async () => {
   registerIpcHandlers()
+  await databaseService.resumeLastConnection()
   await createWindow()
 
   app.on('activate', () => {
@@ -91,6 +92,6 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
-  void databaseService.disconnect()
+  void databaseService.disconnect({ clearLastConnection: false })
   void copilotService.dispose()
 })

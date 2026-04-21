@@ -4,6 +4,7 @@ import sql from 'mssql'
 
 import type {
   ActiveConnection,
+  AppHealth,
   ConnectionProfileInput,
   DatabaseSchema,
   QueryColumn,
@@ -15,6 +16,7 @@ import type {
   SchemaObjectRef,
 } from '../../src/shared/contracts'
 import { ConnectionStore } from './connectionStore'
+import { SettingsStore } from './settingsStore'
 
 interface SchemaRow {
   schemaName: string
@@ -41,13 +43,16 @@ export class DatabaseService {
   private schemaCache: DatabaseSchema | null = null
   private readonly objectDetailCache = new Map<string, SchemaObjectDetail>()
   private readonly connectionStore: ConnectionStore
+  private readonly settingsStore: SettingsStore
+  private resumeError: string | null = null
 
-  constructor(connectionStore: ConnectionStore) {
+  constructor(connectionStore: ConnectionStore, settingsStore: SettingsStore) {
     this.connectionStore = connectionStore
+    this.settingsStore = settingsStore
   }
 
   async connect(input: ConnectionProfileInput): Promise<ActiveConnection> {
-    await this.disconnect()
+    await this.closeActiveConnection()
 
     const resolved = this.connectionStore.resolveConnection(input)
     const pool = new sql.ConnectionPool({
@@ -68,6 +73,7 @@ export class DatabaseService {
     })
 
     this.activePool = await pool.connect()
+    this.resumeError = null
     this.activeConnection = {
       profileId: input.id,
       engine: resolved.engine,
@@ -79,11 +85,56 @@ export class DatabaseService {
     }
     this.schemaCache = null
     this.objectDetailCache.clear()
+    this.settingsStore.setLastConnection({
+      profileId: input.id,
+      engine: resolved.engine,
+      name: resolved.name,
+      server: resolved.server,
+      port: resolved.port,
+      database: resolved.database,
+      user: resolved.user,
+      password: resolved.password,
+      encrypt: resolved.encrypt,
+      trustServerCertificate: resolved.trustServerCertificate,
+    })
 
     return this.activeConnection
   }
 
-  async disconnect(): Promise<void> {
+  async disconnect(options?: { clearLastConnection?: boolean }): Promise<void> {
+    await this.closeActiveConnection()
+    this.resumeError = null
+    if (options?.clearLastConnection ?? true) {
+      this.settingsStore.clearLastConnection()
+    }
+  }
+
+  getHealth(): AppHealth {
+    return {
+      connected: Boolean(this.activePool && this.activeConnection),
+      activeConnection: this.activeConnection,
+      resumeError: this.resumeError,
+    }
+  }
+
+  async resumeLastConnection(): Promise<boolean> {
+    const lastConnection = this.settingsStore.getLastConnection()
+    if (!lastConnection) {
+      this.resumeError = null
+      return false
+    }
+
+    try {
+      await this.connect(lastConnection)
+      return true
+    } catch (error) {
+      await this.closeActiveConnection()
+      this.resumeError = `Could not restore previous connection: ${error instanceof Error ? error.message : 'Unexpected error.'}`
+      return false
+    }
+  }
+
+  private async closeActiveConnection(): Promise<void> {
     this.activeRequest = null
     this.schemaCache = null
     this.objectDetailCache.clear()
@@ -92,13 +143,6 @@ export class DatabaseService {
     if (this.activePool) {
       await this.activePool.close()
       this.activePool = null
-    }
-  }
-
-  getHealth(): { connected: boolean; activeConnection: ActiveConnection | null } {
-    return {
-      connected: Boolean(this.activePool && this.activeConnection),
-      activeConnection: this.activeConnection,
     }
   }
 

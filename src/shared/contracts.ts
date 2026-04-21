@@ -121,6 +121,7 @@ export interface CopilotSqlResult {
 export interface AppHealth {
   connected: boolean
   activeConnection: ActiveConnection | null
+  resumeError: string | null
 }
 
 export interface DbGenieApi {

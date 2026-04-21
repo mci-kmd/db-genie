@@ -31,6 +31,9 @@ import type {
   SchemaObjectRef,
 } from './shared/contracts'
 
+const SQL_TEXT_STORAGE_KEY = 'db-genie/sql-text'
+const COPILOT_PROMPT_STORAGE_KEY = 'db-genie/copilot-prompt'
+
 const defaultForm: ConnectionProfileInput = {
   engine: 'sqlserver',
   name: 'Local SQL Server',
@@ -44,21 +47,14 @@ const defaultForm: ConnectionProfileInput = {
   savePassword: false,
 }
 
-const defaultSql = `-- Describe what you want in the AI prompt, or start typing below.
-SELECT TOP (100) *
-FROM sys.tables
-ORDER BY name;`
-
-const defaultCopilotPrompt = 'Show the newest rows for the selected table and project the most useful columns.'
-
 function App() {
   const [profiles, setProfiles] = useState<ConnectionProfile[]>([])
   const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null)
   const [schema, setSchema] = useState<DatabaseSchema | null>(null)
   const [selectedObject, setSelectedObject] = useState<SchemaObjectRef | null>(null)
   const [objectDetails, setObjectDetails] = useState<Record<string, SchemaObjectDetail>>({})
-  const [sqlText, setSqlText] = useState(defaultSql)
-  const [copilotPrompt, setCopilotPrompt] = useState(defaultCopilotPrompt)
+  const [sqlText, setSqlText] = useState(() => readStoredText(SQL_TEXT_STORAGE_KEY))
+  const [copilotPrompt, setCopilotPrompt] = useState(() => readStoredText(COPILOT_PROMPT_STORAGE_KEY))
   const [copilotModels, setCopilotModels] = useState<CopilotModel[]>([])
   const [selectedCopilotModel, setSelectedCopilotModel] = useState<string | null>(null)
   const [copilotResult, setCopilotResult] = useState<CopilotSqlResult | null>(null)
@@ -133,6 +129,9 @@ function App() {
           setActiveConnection(health.activeConnection)
           await refreshSchema(true)
         }
+        if (health.resumeError) {
+          setErrorMessage(health.resumeError)
+        }
       } catch (error) {
         setErrorMessage(toErrorMessage(error))
       } finally {
@@ -142,6 +141,14 @@ function App() {
       await loadCopilotConfig()
     })()
   }, [loadCopilotConfig])
+
+  useEffect(() => {
+    writeStoredText(SQL_TEXT_STORAGE_KEY, sqlText)
+  }, [sqlText])
+
+  useEffect(() => {
+    writeStoredText(COPILOT_PROMPT_STORAGE_KEY, copilotPrompt)
+  }, [copilotPrompt])
 
   function openAddDialog(): void {
     setDialogMode('add')
@@ -543,6 +550,22 @@ function quoteIdentifier(value: string): string {
 
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unexpected error.'
+}
+
+function readStoredText(key: string): string {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+
+  return window.localStorage.getItem(key) ?? ''
+}
+
+function writeStoredText(key: string, value: string): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(key, value)
 }
 
 function PanelLoadingSkeleton() {

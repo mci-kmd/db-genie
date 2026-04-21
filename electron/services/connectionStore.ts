@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 
-import { safeStorage } from 'electron'
 import Store from 'electron-store'
 
 import type { ConnectionProfile, ConnectionProfileInput } from '../../src/shared/contracts'
+import { decryptSecret, encryptSecret } from './secretStorage'
 
 interface StoredConnectionProfile extends Omit<ConnectionProfile, 'hasSavedPassword'> {
   encryptedPassword?: string
@@ -112,47 +112,13 @@ export class ConnectionStore {
     }
 
     if (input.password?.trim()) {
-      return this.encryptPassword(input.password)
+      return encryptSecret(input.password)
     }
 
     return previousEncryptedPassword
   }
 
-  private encryptPassword(password: string): string {
-    if (safeStorage.isEncryptionAvailable()) {
-      return `safe:${safeStorage.encryptString(password).toString('base64')}`
-    }
-
-    return `plain:${Buffer.from(password, 'utf8').toString('base64')}`
-  }
-
   private decryptPassword(encryptedPassword: string): string {
-    const separatorIndex = encryptedPassword.indexOf(':')
-    if (separatorIndex < 0) {
-      throw new Error('Stored password has an invalid format.')
-    }
-
-    const kind = encryptedPassword.slice(0, separatorIndex)
-    const payload = encryptedPassword.slice(separatorIndex + 1)
-
-    if (kind === 'plain') {
-      return Buffer.from(payload, 'base64').toString('utf8')
-    }
-
-    if (kind === 'safe') {
-      if (!safeStorage.isEncryptionAvailable()) {
-        throw new Error('Encrypted passwords are unavailable on this machine.')
-      }
-
-      try {
-        return safeStorage.decryptString(Buffer.from(payload, 'base64'))
-      } catch (error) {
-        throw new Error(
-          `Stored password could not be decrypted: ${error instanceof Error ? error.message : 'unknown error'}`,
-        )
-      }
-    }
-
-    throw new Error(`Stored password uses unsupported scheme "${kind}".`)
+    return decryptSecret(encryptedPassword)
   }
 }
