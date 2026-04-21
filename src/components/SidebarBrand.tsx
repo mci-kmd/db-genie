@@ -1,7 +1,12 @@
 import { Box } from '@mui/material'
-import { fonts, gradients, palette } from '../theme'
+import { gradients, palette } from '../theme'
+import { GenieMascot } from './GenieMascot'
 
-export function SidebarBrand() {
+type SidebarBrandProps = {
+  generatingSql?: boolean
+}
+
+export function SidebarBrand({ generatingSql = false }: SidebarBrandProps) {
   return (
     <Box
       sx={{
@@ -13,23 +18,7 @@ export function SidebarBrand() {
         flexShrink: 0,
       }}
     >
-      <Box
-        sx={{
-          width: 28,
-          height: 28,
-          borderRadius: '8px',
-          background: gradients.brand,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 14,
-          color: '#fff',
-          fontWeight: 700,
-          fontFamily: fonts.sans,
-        }}
-      >
-        G
-      </Box>
+      <GenieMascot casting={generatingSql} />
       <Box
         sx={{
           fontSize: 15,

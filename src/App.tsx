@@ -415,7 +415,7 @@ ORDER BY 1;`)
               overflow: 'hidden',
             }}
           >
-            <SidebarBrand />
+            <SidebarBrand generatingSql={generatingSql} />
             <ConnectionPill
               activeConnection={activeConnection}
               profiles={profiles}
