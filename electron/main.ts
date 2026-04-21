@@ -18,6 +18,11 @@ const databaseService = new DatabaseService(connectionStore, settingsStore)
 const copilotService = new CopilotService(databaseService, settingsStore)
 
 async function createWindow(): Promise<void> {
+  const iconFileName = process.platform === 'win32' ? 'app-icon.ico' : 'app-icon.png'
+  const iconPath = process.env.VITE_DEV_SERVER_URL
+    ? join(__dirname, '../public', iconFileName)
+    : join(__dirname, '../dist', iconFileName)
+
   const window = new BrowserWindow({
     width: 1600,
     height: 980,
@@ -25,6 +30,7 @@ async function createWindow(): Promise<void> {
     minHeight: 820,
     backgroundColor: '#070b16',
     autoHideMenuBar: true,
+    icon: iconPath,
     title: 'DB Genie',
     webPreferences: {
       preload: join(__dirname, 'preload.mjs'),
