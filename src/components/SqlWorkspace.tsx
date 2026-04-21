@@ -247,13 +247,13 @@ export function SqlWorkspace({
               flexShrink: 0,
             }}
           >
-            AI
+            GENIE
           </Box>
           <InputBase
             fullWidth
             value={copilotPrompt}
             onChange={(event) => onChangeCopilotPrompt(event.target.value)}
-            placeholder="Ask Copilot to write SQL…"
+            placeholder="Ask the Genie about your data..."
             onKeyDown={(event) => {
               if (event.key === 'Enter' && canRun && !generatingSql && copilotPrompt.trim()) {
                 event.preventDefault()
@@ -325,7 +325,7 @@ export function SqlWorkspace({
             }
             sx={{ py: 0.875, flexShrink: 0 }}
           >
-            Generate
+            Ask
           </Button>
         </Box>
       </Box>
@@ -343,7 +343,7 @@ export function SqlWorkspace({
           }}
         >
           <Box component="span" sx={{ color: palette.purple, fontWeight: 600, mr: 1 }}>
-            Copilot:
+            Genie:
           </Box>
           {copilotResult.rationale}
         </Box>

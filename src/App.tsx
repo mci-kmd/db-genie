@@ -329,7 +329,7 @@ ORDER BY 1;`)
 
   async function handleGenerateSql(): Promise<void> {
     if (!selectedCopilotModel) {
-      setErrorMessage('Select a Copilot model before generating SQL.')
+      setErrorMessage('Select a Genie model before generating SQL.')
       return
     }
 
@@ -344,7 +344,7 @@ ORDER BY 1;`)
       if (result.sql) {
         setSqlText(result.sql)
       }
-      setStatusMessage(`Copilot generated SQL with ${result.model}.`)
+      setStatusMessage(`Genie generated SQL with ${result.model}.`)
     } catch (error) {
       setErrorMessage(toErrorMessage(error))
     } finally {
@@ -358,7 +358,7 @@ ORDER BY 1;`)
       const config = await window.dbGenie.setCopilotModel(modelId)
       applyCopilotConfig(config)
       if (config.selectedModel) {
-        setStatusMessage(`Using Copilot model ${config.selectedModel}.`)
+        setStatusMessage(`Using Genie model ${config.selectedModel}.`)
       }
     } catch (error) {
       setErrorMessage(toErrorMessage(error))
