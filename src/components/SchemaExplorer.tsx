@@ -34,15 +34,6 @@ type TreeNode =
       ref: SchemaObjectRef
       rowCount: number | null
     }
-  | {
-      kind: 'column'
-      id: string
-      label: string
-      depth: number
-      parentId: string
-      dataType: string
-      isPrimaryKey: boolean
-    }
 
 export function SchemaExplorer({
   schema,
@@ -60,7 +51,7 @@ export function SchemaExplorer({
 
   const selectedId = selectedObject ? objectId(selectedObject) : null
 
-  // Auto-expand database, the selected schema group, and the selected object
+  // Auto-expand database and the selected schema group
   const expanded = useMemo(() => {
     const next = new Set(manualExpanded)
     if (schema) {
@@ -68,7 +59,6 @@ export function SchemaExplorer({
     }
     if (selectedObject) {
       next.add(`schema:${selectedObject.schema}`)
-      next.add(objectId(selectedObject))
     }
     return next
   }, [manualExpanded, schema, selectedObject])
@@ -123,7 +113,6 @@ export function SchemaExplorer({
                 if (node.kind === 'schema' || node.kind === 'database') {
                   toggle(node.id)
                 } else if (node.kind === 'object') {
-                  toggle(node.id)
                   onSelect(node.ref)
                 }
               }}
@@ -171,7 +160,7 @@ function SchemaRow({
         component="span"
         onClick={(event) => {
           event.stopPropagation()
-          if (node.kind !== 'column') onToggle()
+          if (node.kind === 'database' || node.kind === 'schema') onToggle()
         }}
         sx={{
           fontSize: 9,
@@ -214,25 +203,11 @@ function SchemaRow({
           {node.rowCount.toLocaleString()}
         </Box>
       ) : null}
-      {node.kind === 'column' ? (
-        <Box
-          sx={{
-            fontFamily: fonts.mono,
-            fontSize: 9,
-            color: palette.textMuted,
-            flexShrink: 0,
-          }}
-        >
-          {node.dataType}
-          {node.isPrimaryKey ? ' PK' : ''}
-        </Box>
-      ) : null}
     </Box>
   )
 }
 
 function getArrow(node: TreeNode, expanded: boolean): string {
-  if (node.kind === 'column') return '·'
   if (node.kind === 'object') return '◫'
   return expanded ? '▾' : '▸'
 }
@@ -267,17 +242,6 @@ function buildNodes(schema: DatabaseSchema): TreeNode[] {
         ref: { schema: object.schema, name: object.name, type: object.type },
         rowCount: object.rowCount,
       })
-      for (const column of object.columns) {
-        nodes.push({
-          kind: 'column',
-          id: `${oid}:col:${column.name}`,
-          label: column.name,
-          depth: 3,
-          parentId: oid,
-          dataType: column.dataType,
-          isPrimaryKey: column.isPrimaryKey,
-        })
-      }
     }
   }
   return nodes
