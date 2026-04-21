@@ -136,28 +136,49 @@ export function SqlWorkspace({
     return () => disposable.dispose()
   }, [completionPayload, monaco])
 
-  function handleEditorMount(_editor: editor.IStandaloneCodeEditor, nextMonaco: Monaco): void {
+  function handleBeforeMount(nextMonaco: Monaco): void {
     nextMonaco.editor.defineTheme('db-genie', {
       base: 'vs-dark',
       inherit: true,
       rules: [
         { token: 'keyword', foreground: 'f472b6' },
+        { token: 'keyword.sql', foreground: 'f472b6' },
         { token: 'string', foreground: '5eead4' },
+        { token: 'string.sql', foreground: '5eead4' },
         { token: 'number', foreground: 'fca89d' },
+        { token: 'number.sql', foreground: 'fca89d' },
         { token: 'comment', foreground: '4a4562', fontStyle: 'italic' },
         { token: 'operator', foreground: 'a78bfa' },
+        { token: 'operator.sql', foreground: 'a78bfa' },
+        { token: 'predefined.sql', foreground: '60a5fa' },
+        { token: 'identifier', foreground: 'e2dff0' },
       ],
       colors: {
         'editor.background': palette.bg,
         'editor.foreground': palette.text,
         'editor.lineHighlightBackground': '#1a1726',
+        'editor.lineHighlightBorder': '#1a172600',
         'editorLineNumber.foreground': palette.textMuted,
+        'editorLineNumber.activeForeground': palette.textDim,
         'editorCursor.foreground': palette.purple,
         'editor.selectionBackground': '#3a2f5a',
+        'editor.inactiveSelectionBackground': '#3a2f5a80',
         'editorWidget.background': palette.surfaceRaised,
         'editorWidget.border': palette.border,
+        'editorSuggestWidget.background': palette.surfaceRaised,
+        'editorSuggestWidget.border': palette.border,
+        'editorSuggestWidget.selectedBackground': '#a78bfa1a',
+        'editorSuggestWidget.highlightForeground': palette.purple,
+        'editorHoverWidget.background': palette.surfaceRaised,
+        'editorHoverWidget.border': palette.border,
+        'scrollbarSlider.background': '#4a456266',
+        'scrollbarSlider.hoverBackground': '#4a4562aa',
+        'scrollbarSlider.activeBackground': '#a78bfa80',
       },
     })
+  }
+
+  function handleEditorMount(_editor: editor.IStandaloneCodeEditor, nextMonaco: Monaco): void {
     setMonaco(nextMonaco)
   }
 
@@ -335,6 +356,7 @@ export function SqlWorkspace({
           value={sqlText}
           theme="db-genie"
           onChange={(value) => onChangeSql(value ?? '')}
+          beforeMount={handleBeforeMount}
           onMount={handleEditorMount}
           options={{
             automaticLayout: true,
