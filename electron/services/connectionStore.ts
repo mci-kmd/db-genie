@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import Store from 'electron-store'
 
 import type { ConnectionProfile, ConnectionProfileInput } from '../../src/shared/contracts'
-import { decryptSecret, encryptSecret } from './secretStorage'
+import { decryptSecret, encryptSecret, normalizeStoredSecret } from './secretStorage'
 
 interface StoredConnectionProfile extends Omit<ConnectionProfile, 'hasSavedPassword'> {
   encryptedPassword?: string
@@ -24,6 +24,14 @@ export class ConnectionStore {
       profiles: [],
     },
   })
+
+  constructor() {
+    const nextProfiles = this.store.get('profiles').map((profile) => ({
+      ...profile,
+      encryptedPassword: normalizeStoredSecret(profile.encryptedPassword),
+    }))
+    this.store.set('profiles', nextProfiles)
+  }
 
   listProfiles(): ConnectionProfile[] {
     return this.store
@@ -128,7 +136,7 @@ export class ConnectionStore {
       return encryptSecret(input.password)
     }
 
-    return previousEncryptedPassword
+    return normalizeStoredSecret(previousEncryptedPassword)
   }
 
   private decryptPassword(encryptedPassword: string): string {

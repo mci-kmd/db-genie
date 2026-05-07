@@ -1,7 +1,12 @@
 import Store from 'electron-store'
 
 import type { ConnectionProfileInput, DatabaseEngine } from '../../src/shared/contracts'
-import { decryptSecret, encryptSecret } from './secretStorage'
+import {
+  decryptSecret,
+  encryptSecret,
+  isSecretStorageAvailable,
+  normalizeStoredSecret,
+} from './secretStorage'
 
 interface StoredLastConnection {
   profileId?: string
@@ -25,6 +30,26 @@ export class SettingsStore {
   private readonly store = new Store<StoreShape>({
     name: 'db-genie-settings',
   })
+
+  constructor() {
+    const lastConnection = this.store.get('lastConnection')
+    if (!lastConnection) {
+      return
+    }
+
+    const encryptedPassword = normalizeStoredSecret(lastConnection.encryptedPassword)
+    if (!encryptedPassword) {
+      this.clearLastConnection()
+      return
+    }
+
+    if (encryptedPassword !== lastConnection.encryptedPassword) {
+      this.store.set('lastConnection', {
+        ...lastConnection,
+        encryptedPassword,
+      })
+    }
+  }
 
   getCopilotModelId(): string | null {
     return this.store.get('copilotModelId') ?? null
@@ -63,6 +88,11 @@ export class SettingsStore {
   setLastConnection(
     input: Omit<ConnectionProfileInput, 'savePassword'> & { password: string; profileId?: string },
   ): void {
+    if (!isSecretStorageAvailable()) {
+      this.clearLastConnection()
+      return
+    }
+
     const password = input.password.trim()
     if (!password) {
       throw new Error('A password is required to restore the last connection.')
