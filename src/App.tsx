@@ -180,6 +180,14 @@ function App() {
       const savedProfile = await window.dbGenie.saveConnectionProfile(form)
       const nextProfiles = await window.dbGenie.listConnectionProfiles()
       setProfiles(nextProfiles)
+      setActiveConnection((current) =>
+        current?.profileId === savedProfile.id
+          ? {
+              ...current,
+              name: savedProfile.name,
+            }
+          : current,
+      )
       setDialogProfile(savedProfile)
       setDialogForm(profileToForm(savedProfile))
       setDialogMode('edit')

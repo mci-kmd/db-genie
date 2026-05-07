@@ -36,6 +36,19 @@ export class ConnectionStore {
       }))
   }
 
+  getProfile(id: string): ConnectionProfile | null {
+    const profile = this.store.get('profiles').find((entry) => entry.id === id)
+    if (!profile) {
+      return null
+    }
+
+    const { encryptedPassword, ...rest } = profile
+    return {
+      ...rest,
+      hasSavedPassword: Boolean(encryptedPassword),
+    }
+  }
+
   saveProfile(input: ConnectionProfileInput): ConnectionProfile {
     const profiles = this.store.get('profiles')
     const existing = input.id ? profiles.find((profile) => profile.id === input.id) : undefined

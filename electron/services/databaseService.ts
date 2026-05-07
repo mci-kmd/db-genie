@@ -5,6 +5,7 @@ import sql from 'mssql'
 import type {
   ActiveConnection,
   AppHealth,
+  ConnectionProfile,
   ConnectionProfileInput,
   DatabaseSchema,
   QueryColumn,
@@ -125,12 +126,23 @@ export class DatabaseService {
     }
 
     try {
-      await this.connect(lastConnection)
+      await this.connect(this.resolveResumeConnection(lastConnection))
       return true
     } catch (error) {
       await this.closeActiveConnection()
       this.resumeError = `Could not restore previous connection: ${error instanceof Error ? error.message : 'Unexpected error.'}`
       return false
+    }
+  }
+
+  syncActiveConnectionProfile(profile: ConnectionProfile): void {
+    if (this.activeConnection?.profileId !== profile.id) {
+      return
+    }
+
+    this.activeConnection = {
+      ...this.activeConnection,
+      name: profile.name,
     }
   }
 
@@ -143,6 +155,31 @@ export class DatabaseService {
     if (this.activePool) {
       await this.activePool.close()
       this.activePool = null
+    }
+  }
+
+  private resolveResumeConnection(lastConnection: ConnectionProfileInput): ConnectionProfileInput {
+    if (!lastConnection.id) {
+      return lastConnection
+    }
+
+    const profile = this.connectionStore.getProfile(lastConnection.id)
+    if (!profile) {
+      return lastConnection
+    }
+
+    return {
+      id: profile.id,
+      engine: profile.engine,
+      name: profile.name,
+      server: profile.server,
+      port: profile.port,
+      database: profile.database,
+      user: profile.user,
+      password: lastConnection.password,
+      encrypt: profile.encrypt,
+      trustServerCertificate: profile.trustServerCertificate,
+      savePassword: false,
     }
   }
 

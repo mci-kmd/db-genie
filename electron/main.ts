@@ -55,9 +55,11 @@ async function createWindow(): Promise<void> {
 
 function registerIpcHandlers(): void {
   ipcMain.handle('connections:list', () => connectionStore.listProfiles())
-  ipcMain.handle('connections:save', (_event, input: ConnectionProfileInput) =>
-    connectionStore.saveProfile(input),
-  )
+  ipcMain.handle('connections:save', (_event, input: ConnectionProfileInput) => {
+    const profile = connectionStore.saveProfile(input)
+    databaseService.syncActiveConnectionProfile(profile)
+    return profile
+  })
   ipcMain.handle('connections:delete', (_event, id: string) => {
     connectionStore.deleteProfile(id)
   })
