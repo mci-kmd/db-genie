@@ -215,8 +215,8 @@ export class DatabaseService {
       INNER JOIN sys.columns c ON c.object_id = o.object_id
       INNER JOIN sys.types t ON t.user_type_id = c.user_type_id
       LEFT JOIN (
-        SELECT object_id, SUM(row_count) AS [rowCount]
-        FROM sys.dm_db_partition_stats
+        SELECT object_id, SUM(rows) AS [rowCount]
+        FROM sys.partitions
         WHERE index_id IN (0, 1)
         GROUP BY object_id
       ) row_counts ON row_counts.object_id = o.object_id
