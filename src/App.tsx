@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Alert, Box, LinearProgress, Skeleton, Snackbar, Stack } from '@mui/material'
 import { Group, Panel, Separator, useDefaultLayout } from 'react-resizable-panels'
@@ -69,6 +69,8 @@ function App() {
   const [savingCopilotModel, setSavingCopilotModel] = useState(false)
   const [runningQuery, setRunningQuery] = useState(false)
   const [generatingSql, setGeneratingSql] = useState(false)
+  const queryCancelRequested = useRef(false)
+  const sqlGenerationCancelRequested = useRef(false)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<ConnectionDialogMode>('add')
@@ -313,24 +315,37 @@ ORDER BY 1;`)
   }
 
   async function handleRunQuery(): Promise<void> {
+    queryCancelRequested.current = false
     setRunningQuery(true)
     try {
       const result = await window.dbGenie.runQuery(sqlText)
       setQueryResult(result)
       setStatusMessage(`Query returned ${result.rowCount} row(s) in ${result.durationMs} ms.`)
     } catch (error) {
+      if (queryCancelRequested.current) {
+        setStatusMessage('Query canceled.')
+        return
+      }
       setErrorMessage(toErrorMessage(error))
     } finally {
+      queryCancelRequested.current = false
       setRunningQuery(false)
     }
   }
 
   async function handleCancelQuery(): Promise<void> {
+    if (!runningQuery) {
+      return
+    }
+
+    queryCancelRequested.current = true
     try {
       await window.dbGenie.cancelQuery()
-      setRunningQuery(false)
-      setStatusMessage('Cancel requested.')
+      if (queryCancelRequested.current) {
+        setStatusMessage('Cancel requested.')
+      }
     } catch (error) {
+      queryCancelRequested.current = false
       setErrorMessage(toErrorMessage(error))
     }
   }
@@ -341,6 +356,7 @@ ORDER BY 1;`)
       return
     }
 
+    sqlGenerationCancelRequested.current = false
     setGeneratingSql(true)
     try {
       const result = await window.dbGenie.generateSql({
@@ -354,9 +370,31 @@ ORDER BY 1;`)
       }
       setStatusMessage(`Genie generated SQL with ${result.model}.`)
     } catch (error) {
+      if (sqlGenerationCancelRequested.current) {
+        setStatusMessage('Genie request canceled.')
+        return
+      }
       setErrorMessage(toErrorMessage(error))
     } finally {
+      sqlGenerationCancelRequested.current = false
       setGeneratingSql(false)
+    }
+  }
+
+  async function handleCancelGenerateSql(): Promise<void> {
+    if (!generatingSql) {
+      return
+    }
+
+    sqlGenerationCancelRequested.current = true
+    try {
+      await window.dbGenie.cancelSqlGeneration()
+      if (sqlGenerationCancelRequested.current) {
+        setStatusMessage('Genie cancel requested.')
+      }
+    } catch (error) {
+      sqlGenerationCancelRequested.current = false
+      setErrorMessage(toErrorMessage(error))
     }
   }
 
@@ -472,7 +510,8 @@ ORDER BY 1;`)
                     schema={schema}
                     selectedObject={selectedObjectDetail}
                     sqlText={sqlText}
-                    onCancel={() => void handleCancelQuery()}
+                    onCancelGenerate={() => void handleCancelGenerateSql()}
+                    onCancelQuery={() => void handleCancelQuery()}
                     onChangeSql={setSqlText}
                     onChangeCopilotPrompt={setCopilotPrompt}
                     onChangeCopilotModel={(modelId) => void handleCopilotModelChange(modelId)}

@@ -40,7 +40,8 @@ interface SqlWorkspaceProps {
   onChangeCopilotPrompt: (value: string) => void
   onChangeCopilotModel: (value: string) => void
   onRunQuery: () => void
-  onCancel: () => void
+  onCancelQuery: () => void
+  onCancelGenerate: () => void
   onGenerateSql: () => void
   onInsertTemplate: () => void
 }
@@ -98,7 +99,8 @@ export function SqlWorkspace({
   onChangeCopilotPrompt,
   onChangeCopilotModel,
   onRunQuery,
-  onCancel,
+  onCancelQuery,
+  onCancelGenerate,
   onGenerateSql,
   onInsertTemplate,
 }: SqlWorkspaceProps) {
@@ -236,22 +238,19 @@ export function SqlWorkspace({
       >
         <Button
           variant="contained"
-          onClick={onRunQuery}
-          disabled={!canRun || runningQuery}
-          title="Run query (F5)"
-          startIcon={<PlayArrowRoundedIcon sx={{ fontSize: 16 }} />}
+          onClick={runningQuery ? onCancelQuery : onRunQuery}
+          disabled={!runningQuery && !canRun}
+          title={runningQuery ? 'Cancel query' : 'Run query (F5)'}
+          startIcon={
+            runningQuery ? (
+              <StopRoundedIcon sx={{ fontSize: 16 }} />
+            ) : (
+              <PlayArrowRoundedIcon sx={{ fontSize: 16 }} />
+            )
+          }
           sx={{ px: 2.25, py: 0.875 }}
         >
-          Run
-        </Button>
-        <Button
-          variant="outlined"
-          onClick={onCancel}
-          disabled={!runningQuery}
-          startIcon={<StopRoundedIcon sx={{ fontSize: 16 }} />}
-          sx={{ py: 0.875 }}
-        >
-          Cancel
+          {runningQuery ? 'Cancel' : 'Run'}
         </Button>
         <Tooltip title={selectedObject ? 'Insert SELECT for selected table' : 'Select a table first'}>
           <span>
@@ -354,18 +353,21 @@ export function SqlWorkspace({
           </Select>
           <Button
             variant="contained"
-            startIcon={<AutoAwesomeRoundedIcon sx={{ fontSize: 14 }} />}
-            onClick={onGenerateSql}
+            startIcon={
+              generatingSql ? (
+                <StopRoundedIcon sx={{ fontSize: 14 }} />
+              ) : (
+                <AutoAwesomeRoundedIcon sx={{ fontSize: 14 }} />
+              )
+            }
+            onClick={generatingSql ? onCancelGenerate : onGenerateSql}
             disabled={
-              !canRun ||
-              generatingSql ||
-              copilotModelBusy ||
-              !selectedCopilotModel ||
-              !copilotPrompt.trim()
+              !generatingSql &&
+              (!canRun || copilotModelBusy || !selectedCopilotModel || !copilotPrompt.trim())
             }
             sx={{ py: 0.875, flexShrink: 0 }}
           >
-            Ask
+            {generatingSql ? 'Cancel' : 'Ask'}
           </Button>
         </Box>
       </Box>

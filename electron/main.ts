@@ -79,6 +79,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle('copilot:generate', (_event, request: CopilotSqlRequest) =>
     copilotService.generateSql(request),
   )
+  ipcMain.handle('copilot:cancel', () => copilotService.cancelSqlGeneration())
 }
 
 app.whenReady().then(async () => {

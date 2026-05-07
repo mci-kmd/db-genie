@@ -138,4 +138,5 @@ export interface DbGenieApi {
   getCopilotConfig(): Promise<CopilotConfig>
   setCopilotModel(modelId: string): Promise<CopilotConfig>
   generateSql(request: CopilotSqlRequest): Promise<CopilotSqlResult>
+  cancelSqlGeneration(): Promise<void>
 }

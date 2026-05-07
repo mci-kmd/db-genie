@@ -23,6 +23,7 @@ const api: DbGenieApi = {
   getCopilotConfig: () => ipcRenderer.invoke('copilot:config') as Promise<CopilotConfig>,
   setCopilotModel: (modelId: string) => ipcRenderer.invoke('copilot:model', modelId) as Promise<CopilotConfig>,
   generateSql: (request: CopilotSqlRequest) => ipcRenderer.invoke('copilot:generate', request),
+  cancelSqlGeneration: () => ipcRenderer.invoke('copilot:cancel'),
 }
 
 contextBridge.exposeInMainWorld('dbGenie', api)

@@ -1,5 +1,6 @@
 import {
   CopilotClient,
+  CopilotSession,
   defineTool,
   type PermissionRequest,
   type PermissionRequestResult,
@@ -17,6 +18,7 @@ import { DatabaseService } from './databaseService'
 import { SettingsStore } from './settingsStore'
 
 const require = createRequire(import.meta.url)
+const COPILOT_CANCELED_MESSAGE = 'Genie request canceled.'
 const COPILOT_BINARY_PACKAGES = {
   win32: {
     arm64: '@github/copilot-win32-arm64',
@@ -40,6 +42,8 @@ export class CopilotService {
   private started = false
   private readonly databaseService: DatabaseService
   private readonly settingsStore: SettingsStore
+  private activeSession: CopilotSession | null = null
+  private cancelRequested = false
 
   constructor(databaseService: DatabaseService, settingsStore: SettingsStore) {
     this.databaseService = databaseService
@@ -120,6 +124,8 @@ export class CopilotService {
         }),
       ],
     })
+    this.activeSession = session
+    this.cancelRequested = false
 
     try {
       const selectedObjectText = request.selectedObject
@@ -148,6 +154,9 @@ ${JSON.stringify(schemaSummary, null, 2)}
 
       const rawResponse = response?.data.content?.trim() ?? ''
       if (!rawResponse) {
+        if (this.cancelRequested) {
+          throw new Error(COPILOT_CANCELED_MESSAGE)
+        }
         throw new Error('Copilot returned an empty response.')
       }
 
@@ -158,9 +167,27 @@ ${JSON.stringify(schemaSummary, null, 2)}
         rawResponse,
         model,
       }
+    } catch (error) {
+      if (this.cancelRequested) {
+        throw new Error(COPILOT_CANCELED_MESSAGE)
+      }
+      throw error
     } finally {
+      if (this.activeSession === session) {
+        this.activeSession = null
+        this.cancelRequested = false
+      }
       await session.disconnect()
     }
+  }
+
+  async cancelSqlGeneration(): Promise<void> {
+    if (!this.activeSession) {
+      return
+    }
+
+    this.cancelRequested = true
+    await this.activeSession.abort()
   }
 
   async dispose(): Promise<void> {
