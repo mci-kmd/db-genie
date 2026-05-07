@@ -42,7 +42,7 @@ interface ConnectionDialogProps {
 
 export function ConnectionDialog(props: ConnectionDialogProps) {
   return (
-    <Dialog open={props.open} onClose={props.onClose} maxWidth="sm" fullWidth>
+    <Dialog open={props.open} onClose={() => undefined} maxWidth="sm" fullWidth>
       {props.open ? (
         <ConnectionDialogBody
           key={`${props.mode}:${props.existingProfile?.id ?? 'new'}`}
