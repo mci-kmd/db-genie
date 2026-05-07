@@ -324,7 +324,12 @@ export class DatabaseService {
 
     try {
       const result = await request.query(trimmed)
-      const rawRows = result.recordset ?? []
+      const recordset = result.recordset as
+        | (Array<Record<string, unknown>> & {
+            columns?: Record<string, { type?: { declaration?: string } }>
+          })
+        | undefined
+      const rawRows = recordset ?? []
       const rows = rawRows
         .slice(0, MAX_RENDER_ROWS)
         .map((row: Record<string, unknown>, index: number) => ({
@@ -334,9 +339,7 @@ export class DatabaseService {
           ),
         }))
 
-      const columnMap = (result.recordset as Array<Record<string, unknown>> & {
-        columns?: Record<string, { type?: { declaration?: string } }>
-      }).columns
+      const columnMap = recordset?.columns
 
       const columns = (columnMap
         ? Object.entries(columnMap).map<QueryColumn>(([field, meta]) => ({
